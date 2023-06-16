@@ -6,9 +6,13 @@ export enum TokenKind {
     Keyword,
     Operator,
     OpenParenthesis,
-    CloseParenthesis
+    CloseParenthesis,
+    Newline,
+    StatementBreak
 }
 
 export abstract class Token {
     constructor(public readonly kind: TokenKind, public readonly position: FilePositionRange) {}
+
+    abstract getPrecedence(): number|null;
 }

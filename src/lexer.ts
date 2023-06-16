@@ -1,5 +1,5 @@
 import { StringReader } from "./stringReader";
-import { CloseParenthesis, KeywordToken, NumberToken, OpenParenthesisToken, OperatorToken, StringToken, Token } from "./token";
+import { CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, StatementBreakToken, StringToken, Token } from "./token";
 
 function readSingleToken(stringReader: StringReader) {
     const context = stringReader.createContext();
@@ -19,8 +19,14 @@ function readSingleToken(stringReader: StringReader) {
     const openParenthesis = OpenParenthesisToken.read(context);
     if (openParenthesis !== null) return openParenthesis;
 
-    const closeParenthesis = CloseParenthesis.read(context);
+    const closeParenthesis = CloseParenthesisToken.read(context);
     if (closeParenthesis !== null) return closeParenthesis;
+
+    const statementBreak = StatementBreakToken.read(context);
+    if (statementBreak !== null) return statementBreak;
+    
+    const newline = NewlineToken.read(context);
+    if (newline !== null) return newline;
 
     context.readNextChar();
     context.readWhileRegexMatch(/\s/);

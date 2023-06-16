@@ -3,7 +3,6 @@ import { Token, TokenKind } from "./Token";
 
 export class StringToken extends Token {
     static read(stringReader: StringReaderContext) {
-        console.log(stringReader);
         const stringBegin = stringReader.readOnceRegexMatch(/\"/);
         if (stringBegin === null) return null;
         
@@ -33,5 +32,9 @@ export class StringToken extends Token {
 
     constructor(public readonly text: string, public readonly position: FilePositionRange) {
         super(TokenKind.String, position);
+    }
+
+    getPrecedence(): number|null {
+        return null;
     }
 }

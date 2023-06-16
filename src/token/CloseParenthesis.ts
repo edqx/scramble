@@ -3,12 +3,12 @@ import { Token, TokenKind } from "./Token";
 
 export type AnyCloseParenthesis = ")"|"]"|"}";
 
-export class CloseParenthesis extends Token {
+export class CloseParenthesisToken extends Token {
     static read(stringReader: StringReaderContext) {
         const parenthesis = stringReader.readOnceRegexMatch(/[)}\]]/);
         if (parenthesis === null) return null;
 
-        return new CloseParenthesis(parenthesis as AnyCloseParenthesis, stringReader.getPositionRange());
+        return new CloseParenthesisToken(parenthesis as AnyCloseParenthesis, stringReader.getPositionRange());
     }
 
     constructor(public readonly parenthesis: AnyCloseParenthesis, public readonly position: FilePositionRange) {
@@ -16,10 +16,14 @@ export class CloseParenthesis extends Token {
     }
 
     getMatchingOpenParenthesis() {
-        return {
-            ")": "(",
-            "]": "[",
-            "}": "{"
-        }[this.parenthesis];
+        switch (this.parenthesis) {
+        case ")": return "(";
+        case "]": return "[";
+        case "}": return "{";
+        }
+    }
+
+    getPrecedence(): number|null {
+        return null;
     }
 }

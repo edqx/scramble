@@ -1,6 +1,8 @@
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
+const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do"])
+
 export class KeywordToken extends Token {
     static read(stringReader: StringReaderContext) {
         const firstChar = stringReader.readOnceRegexMatch(/[a-zA-Z_$]/);
@@ -11,7 +13,14 @@ export class KeywordToken extends Token {
         return new KeywordToken(`${firstChar}${remainingChars}`, stringReader.getPositionRange());
     }
 
-    constructor(public readonly unprocessedNumber: string, public readonly position: FilePositionRange) {
+    constructor(public readonly keyword: string, public readonly position: FilePositionRange) {
         super(TokenKind.Keyword, position);
+    }
+
+    getPrecedence(): number|null {
+        if (STATEMENT_KEYWORDS.has(this.keyword))
+            return -999;
+
+        return null;
     }
 }

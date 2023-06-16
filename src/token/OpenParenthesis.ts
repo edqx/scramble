@@ -16,10 +16,18 @@ export class OpenParenthesisToken extends Token {
     }
 
     getMatchingEndParenthesis() {
-        return {
-            "(": ")",
-            "[": "]",
-            "{": "}"
-        }[this.parenthesis];
+        switch (this.parenthesis) {
+        case "(": return ")";
+        case "[": return "]";
+        case "{": return "}";
+        }
+    }
+
+    getPrecedence(): number|null {
+        switch (this.parenthesis) {
+        case "(": return null;
+        case "[": return -1;
+        case "{": return -1;
+        }
     }
 }

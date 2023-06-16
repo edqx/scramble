@@ -20,4 +20,8 @@ export class NumberToken extends Token {
     constructor(public readonly unprocessedNumber: string, public readonly position: FilePositionRange) {
         super(TokenKind.Number, position);
     }
+
+    getPrecedence(): number|null {
+        return null;
+    }
 }
