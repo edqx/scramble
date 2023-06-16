@@ -1,9 +1,11 @@
+import { AstCollector } from "../astCollector";
 import { KeywordToken } from "../token";
+import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 
 export class KeywordExpression extends Expression {
-    static from(keywordToken: KeywordToken) {
-        return new KeywordExpression(keywordToken);
+    static read(keywordToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader) {
+        astCollector.appendExpression(new KeywordExpression(keywordToken));
     }
 
     keyword: string;

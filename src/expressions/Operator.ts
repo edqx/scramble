@@ -1,4 +1,4 @@
-import { parseAtomicTokenAst, parseSingleTokenAst } from "../ast";
+import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { FilePositionRange } from "../stringReader";
 import { OperatorToken } from "../token";
@@ -14,7 +14,7 @@ export class OperatorExpression extends Expression {
 
             const tokenPrecedence = nextToken.getPrecedence();
             if (tokenPrecedence === null) {
-                parseAtomicTokenAst(nextToken, astCollector, tokenReader);
+                parseSingleTokenAst(nextToken, astCollector, tokenReader);
                 continue;
             }
 

@@ -4,10 +4,6 @@ import { KeywordExpression } from "./Keyword";
 import { ParenthesisExpression } from "./Parenthesis";
 
 export class FunctionCallExpression extends Expression {
-    static from(identifier: KeywordExpression, args: ParenthesisExpression) {
-        return new FunctionCallExpression(identifier, args);
-    }
-
     identifier: string;
     args: Expression[];
 

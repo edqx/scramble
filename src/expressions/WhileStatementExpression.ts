@@ -1,4 +1,4 @@
-import { parseAtomicTokenAst, parseSingleTokenAst } from "../ast";
+import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { FilePositionRange } from "../stringReader";
 import { KeywordToken, NewlineToken, OpenParenthesisToken, StatementBreakToken } from "../token";
@@ -27,7 +27,7 @@ export class WhileStatementExpression extends Expression {
                     }
         
                     if (nextToken.getPrecedence() === null) {
-                        parseAtomicTokenAst(nextToken, blockAst, tokenReader);
+                        parseSingleTokenAst(nextToken, blockAst, tokenReader);
                         continue;
                     }
         
@@ -45,7 +45,7 @@ export class WhileStatementExpression extends Expression {
             }
 
             if (nextToken.getPrecedence() === null) {
-                parseAtomicTokenAst(nextToken, conditionAst, tokenReader);
+                parseSingleTokenAst(nextToken, conditionAst, tokenReader);
                 continue;
             }
 

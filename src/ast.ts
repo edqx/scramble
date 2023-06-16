@@ -4,7 +4,11 @@ import { KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, Operator
 import { TokenReader } from "./tokenReader";
 
 export function parseSingleTokenAst(token: Token, astCollector: AstCollector, tokenReader: TokenReader) {
-    if (token instanceof OperatorToken) {
+    if (token instanceof NumberToken) {
+        NumberExpression.read(token, astCollector, tokenReader);
+    } else if (token instanceof StringToken) {
+        StringExpression.read(token, astCollector, tokenReader);
+    } else if (token instanceof OperatorToken) {
         OperatorExpression.read(token, astCollector, tokenReader);
     } else if (token instanceof OpenParenthesisToken) {
         ParenthesisExpression.read(token, astCollector, tokenReader);
@@ -12,25 +16,9 @@ export function parseSingleTokenAst(token: Token, astCollector: AstCollector, to
         switch (token.keyword) {
             case "if": IfStatementExpression.read(token, astCollector, tokenReader); break;
             case "while": WhileStatementExpression.read(token, astCollector, tokenReader); break;
+            default: KeywordExpression.read(token, astCollector, tokenReader);
         }
-        void token;
-    } else if (token instanceof StatementBreakToken) {
-        void token;
-    } else {
-        throw new Error(`Unknown token ${TokenKind[token.kind]}`);
-    }
-}
-
-export function parseAtomicTokenAst(token: Token, astCollector: AstCollector, tokenReader: TokenReader) {
-    if (token instanceof NumberToken) {
-        astCollector.appendExpression(NumberExpression.from(token));
-    } else if (token instanceof StringToken) {
-        astCollector.appendExpression(StringExpression.from(token));
-    } else if (token instanceof OpenParenthesisToken) {
-        ParenthesisExpression.read(token, astCollector, tokenReader);
-    } else if (token instanceof KeywordToken) { // no statement keywords here as they have no precedence
-        astCollector.appendExpression(KeywordExpression.from(token));
-    } else if (token instanceof NewlineToken) {
+    } else if (token instanceof StatementBreakToken || token instanceof NewlineToken) {
         void token;
     } else {
         throw new Error(`Unknown token ${TokenKind[token.kind]}`);
@@ -45,7 +33,7 @@ export function parseAst(tokenReader: TokenReader) {
         if (nextToken === undefined) break;
 
         if (nextToken.getPrecedence() === null) {
-            parseAtomicTokenAst(nextToken, astCollector, tokenReader);
+            parseSingleTokenAst(nextToken, astCollector, tokenReader);
             continue;
         }
 
