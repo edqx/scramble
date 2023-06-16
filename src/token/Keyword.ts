@@ -1,7 +1,7 @@
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
-const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do"])
+const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do", "else"])
 
 export class KeywordToken extends Token {
     static read(stringReader: StringReaderContext) {
