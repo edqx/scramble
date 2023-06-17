@@ -28,8 +28,8 @@ export class TypeGuardExpression extends Expression {
                 break;
             }
         }
-        const right = astCollector.assertPop();
-        const left = astCollector.assertPop();
+        const right = astCollector.popLastExpression()!;
+        const left = astCollector.popLastExpression()!;
         if (!(left instanceof KeywordExpression)) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.InvalidLeftHandSideReference)

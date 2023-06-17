@@ -1,5 +1,11 @@
 export enum ErrorCode {
     MissingFractionalPart,
     InvalidLeftHandSideReference,
-    InvalidParameterDeclaration
+    InvalidParameterDeclaration,
+    MismatchedParenthesis,
+    MissingCondition,
+    MissingCodeBlock,
+    ExpectedIdentifier,
+    UnexpectedTermination,
+    MissingRightHandExpression
 }

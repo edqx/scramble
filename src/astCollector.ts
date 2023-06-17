@@ -7,18 +7,11 @@ export class AstCollector {
         this.expressions = [];
     }
 
-    assertPop() {
-        if (this.expressions.length > 0)
-            return this.expressions.pop()!;
-
-        throw new Error("Expected expression");
-    }
-
-    pop() {
+    popLastExpression() {
         return this.expressions.pop();
     }
 
-    peekLast(): Expression|undefined {
+    peekLastExpression(): Expression|undefined {
         return this.expressions[this.expressions.length - 1];
     }
 

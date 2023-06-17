@@ -1,7 +1,8 @@
 import { AstCollector } from "./astCollector";
 import { ErrorCollector } from "./errorCollector";
+import { CompilerError, ErrorCode } from "./errors";
 import { AccessorExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, TypeGuardExpression, WhileStatementExpression } from "./expressions";
-import { AccessorToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token, TokenKind } from "./token";
+import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token, TokenKind } from "./token";
 import { TypeIndicatorToken } from "./token/TypeIndicator";
 import { TokenReader } from "./tokenReader";
 
@@ -28,6 +29,11 @@ export function parseSingleTokenAst(token: Token, astCollector: AstCollector, to
         void token;
     } else if (token instanceof TypeIndicatorToken) {
         TypeGuardExpression.read(token, astCollector, tokenReader, errorCollector);
+    } else if (token instanceof CloseParenthesisToken) {
+        errorCollector.addError(
+            new CompilerError(ErrorCode.MismatchedParenthesis)
+                .addError(token.position, "No matching open parenthesis")
+        );
     } else {
         throw new Error(`Unknown token ${TokenKind[token.kind]}`);
     }

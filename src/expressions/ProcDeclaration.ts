@@ -11,6 +11,7 @@ import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 import { ParameterDeclarationExpression } from "./ParameterDeclaration";
 import { ParenthesisExpression } from "./Parenthesis";
+import { ReturnStatementExpression } from "./ReturnStatement";
 import { TypeGuardExpression } from "./TypeGuard";
 
 export class ProcDeclarationExpression extends Expression {
@@ -59,49 +60,68 @@ export class ProcDeclarationExpression extends Expression {
 
     static read(procKeywordToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         const identifierToken = tokenReader.getNextToken();
-        if (identifierToken === undefined) throw new Error("Unexpected EOF");
-        if (!(identifierToken instanceof KeywordToken)) throw new Error("Invalid proc identifier");
+        if (identifierToken === undefined || !(identifierToken instanceof KeywordToken)) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.ExpectedIdentifier)
+                    .addError(identifierToken?.position || procKeywordToken.position.end.offset(1), "Expected procedure name identifier")
+            );
+            return;
+        };
         
         tokenReader.moveNextWhile(token => token instanceof NewlineToken);
         const paramsStartToken = tokenReader.getNextToken();
-        if (identifierToken === undefined) throw new Error("Unexpected EOF");
-        if (!(paramsStartToken instanceof OpenParenthesisToken)) throw new Error("Expected proc parameter list");
+        if (identifierToken === undefined || !(paramsStartToken instanceof OpenParenthesisToken)) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.ExpectedIdentifier)
+                    .addError(paramsStartToken?.position || identifierToken.position.end.offset(1), "Expected procedure parameter list declaration")
+            );
+            return;
+        }
 
         const parametersAst = new AstCollector;
         ParenthesisExpression.read(paramsStartToken, parametersAst, tokenReader, errorCollector);
 
-        const parametersList = parametersAst.getPrimeExpression()!;
-        if (!(parametersList instanceof ParenthesisExpression)) throw new Error("Expected proc parameter list");
+        const parametersList = parametersAst.getPrimeExpression();
+        if (!parametersList || !(parametersList instanceof ParenthesisExpression)) {errorCollector.addError(
+                new CompilerError(ErrorCode.ExpectedIdentifier)
+                    .addError(parametersList?.position || identifierToken.position.end.offset(1), "Expected procedure parameter list declaration")
+            );
+            return;
+        };
 
         tokenReader.moveNextWhile(token => token instanceof NewlineToken);
-        const block = tokenReader.getNextToken();
-        if (block instanceof KeywordToken) {
-            if (block.keyword === "return") {
-                const blockAst = new AstCollector;
-                parseSingleTokenAst(block, blockAst, tokenReader, errorCollector);
-                astCollector.appendExpression(
-                    new ProcDeclarationExpression(
-                        identifierToken, 
-                        this.parseParameters(
-                            procKeywordToken,
-                            parametersList.expressions,
-                            errorCollector
-                        ),
-                        blockAst.getPrimeExpression()!
-                    )
+        const blockToken = tokenReader.getNextToken();
+        if (blockToken === undefined) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.MissingCodeBlock)
+                    .addError(parametersList.position.end.offset(1), "Expected code block or 'return' statement")
+                    .addInfo(parametersList.position, "After defining a procedure's parameters, you need to define the parameter body")
+            );
+            return;
+        }
+        parseSingleTokenAst(blockToken, astCollector, tokenReader, errorCollector);
+        const expr = astCollector.popLastExpression();
+        if (expr instanceof ReturnStatementExpression || expr instanceof ParenthesisExpression) {
+            if (expr instanceof ReturnStatementExpression && expr.expression === undefined) {
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.MissingCodeBlock)
+                        .addError(expr.position.end.offset(1), "Expected return value")
+                        .addInfo(expr.position, "When using the short-form 'return' statement, you need to return a value")
                 );
                 return;
             }
-            throw new Error("Expected code block or 'return' statement");
-        } else if (block instanceof OpenParenthesisToken && block.parenthesis === "{") {
-            const blockAst = new AstCollector;
-            parseSingleTokenAst(block, blockAst, tokenReader, errorCollector);
             astCollector.appendExpression(
                 new ProcDeclarationExpression(
                     identifierToken,
                     this.parseParameters(procKeywordToken, parametersList.expressions, errorCollector),
-                    blockAst.getPrimeExpression()!
+                    expr
                 )
+            );
+        } else {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.MissingCodeBlock)
+                    .addError(expr?.position || parametersList.position.end.offset(1), "Expected code block or 'return' statement")
+                    .addInfo(parametersList.position, "After defining a procedure's parameters, you need to define the procedure body")
             );
         }
     }

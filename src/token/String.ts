@@ -1,4 +1,5 @@
 import { ErrorCollector } from "../errorCollector";
+import { CompilerError, ErrorCode } from "../errors";
 import { EOF, FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
@@ -11,19 +12,33 @@ export class StringToken extends Token {
         while (true) {
             const nextChar = stringReader.readNextChar();
             if (nextChar === EOF) {
-                throw new Error("Unexpected EOF"); // TODO: proper error
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.UnexpectedTermination)
+                        .addError(stringReader.getPositionRange().end, "Unexpected EOF (end of file) while reading string")
+                );
+                return null;
             }
             if (nextChar === "\"") break;
             if (nextChar === "\\") {
                 const escapedChar = stringReader.readNextChar();
-                if (escapedChar === EOF)
-                    throw new Error("Unexpected EOF");
+                if (escapedChar === EOF) {
+                    errorCollector.addError(
+                        new CompilerError(ErrorCode.UnexpectedTermination)
+                            .addError(stringReader.getPositionRange().end, "Unexpected EOF (end of file) while reading string")
+                    );
+                    return null;
+                }
 
                 str += escapedChar;
                 continue;
             }
-            if (nextChar === "\n")
-                throw new Error("Unexpected newline");
+            if (nextChar === "\n") {
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.UnexpectedTermination)
+                        .addError(stringReader.getPositionRange().end, "Unexpected newline while reading string")
+                );
+                return null;
+            }
 
             str += nextChar;
         }

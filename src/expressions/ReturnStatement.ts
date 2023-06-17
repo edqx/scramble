@@ -25,11 +25,11 @@ export class ReturnStatementExpression extends Expression {
                 break;
             }
         }
-        const expression = astCollector.assertPop();
-        astCollector.appendExpression(new ReturnStatementExpression(expression));
+        const expression = astCollector.popLastExpression()!;
+        astCollector.appendExpression(new ReturnStatementExpression(returnToken, expression));
     }
 
-    constructor(public readonly expression: Expression) {
-        super(ExpressionKind.ReturnStatement, expression.position);
+    constructor(returnToken: KeywordToken, public readonly expression: Expression|undefined) {
+        super(ExpressionKind.ReturnStatement, returnToken.position);
     }
 }

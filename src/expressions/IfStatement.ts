@@ -1,6 +1,7 @@
 import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
+import { CompilerError, ErrorCode } from "../errors";
 import { FilePositionRange } from "../stringReader";
 import { KeywordToken, NewlineToken, OpenParenthesisToken, StatementBreakToken } from "../token";
 import { TokenReader } from "../tokenReader";
@@ -12,11 +13,21 @@ export class IfStatementExpression extends Expression {
         const nextToken = tokenReader.peekNextToken();
         if (nextToken instanceof KeywordToken && nextToken.keyword === "else") {
             tokenReader.getNextToken();
+            tokenReader.moveNextWhile(token => token instanceof NewlineToken);
             const elseBlockAst = this.readSingleStatement(tokenReader, false, errorCollector);
-            astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, elseBlockAst.getPrimeExpression()));
-        } else {
-            astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, undefined));
+            const primeExpression = elseBlockAst.getPrimeExpression();
+            if (primeExpression === undefined) {
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.MissingCodeBlock)
+                        .addError(nextToken.position.end.offset(1), "Expected code block")
+                        .addInfo(nextToken.position, "'else' statement expects a code block following immediately after")
+                );
+            } else {
+                astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, elseBlockAst.getPrimeExpression()));
+                return;
+            }
         }
+        astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, undefined));
     }
 
     protected static readSingleStatement(tokenReader: TokenReader, allowElse: boolean, errorCollector: ErrorCollector) {
@@ -39,9 +50,17 @@ export class IfStatementExpression extends Expression {
         }
     }
 
-    protected static readThen(conditionAst: AstCollector, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+    protected static readThen(thenKeyword: KeywordToken, conditionAst: AstCollector, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         tokenReader.moveNextWhile(token => token instanceof NewlineToken);
         const blockAst = this.readSingleStatement(tokenReader, true, errorCollector);
+        if (blockAst.getPrimeExpression() === undefined) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.MissingCodeBlock)
+                    .addError(thenKeyword.position.end.offset(1), "Expected code block")
+                    .addInfo(thenKeyword.position, "'if' statement expects a code block after 'then'")
+            );
+            return;
+        }
         this.attemptReadElse(conditionAst, blockAst, astCollector, tokenReader, errorCollector);
     }
 
@@ -55,22 +74,33 @@ export class IfStatementExpression extends Expression {
         const conditionAst = new AstCollector;
         while (true) {
             const nextToken = tokenReader.getNextToken();
-            
-            if (nextToken === undefined) throw new Error("Unexpected EOF");
+
+            if (nextToken === undefined) {
+                const primeExpression = conditionAst.getPrimeExpression()!;
+                if (primeExpression === undefined) {
+                    errorCollector.addError(
+                        new CompilerError(ErrorCode.MissingCondition)
+                            .addError(ifKeywordToken.position.end.offset(1), "Expected condition")
+                            .addInfo(ifKeywordToken.position, "'if' statement expects a condition following immediately after")
+                    );
+                } else {
+                    errorCollector.addError(
+                        new CompilerError(ErrorCode.MissingCodeBlock)
+                            .addError(primeExpression.position.end.offset(1), "Expected code block or 'then' statement")
+                            .addInfo(ifKeywordToken.position, "'if' statement expects a condition and then a code block following immediately after")
+                    );
+                }
+                break;
+            }
 
             if (nextToken instanceof KeywordToken && nextToken.keyword === "then") {
-                this.readThen(conditionAst, astCollector, tokenReader, errorCollector);
+                this.readThen(nextToken, conditionAst, astCollector, tokenReader, errorCollector);
                 break;
             }
 
             if (nextToken instanceof OpenParenthesisToken && nextToken.parenthesis === "{") {
                 this.readBlock(nextToken, conditionAst, astCollector, tokenReader, errorCollector);
                 break;
-            }
-
-            if (nextToken.getPrecedence() === null) {
-                parseSingleTokenAst(nextToken, conditionAst, tokenReader, errorCollector);
-                continue;
             }
 
             parseSingleTokenAst(nextToken, conditionAst, tokenReader, errorCollector);

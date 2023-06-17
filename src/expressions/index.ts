@@ -12,4 +12,5 @@ export * from "./ProcDeclaration";
 export * from "./ReturnStatement";
 export * from "./String";
 export * from "./TypeGuard";
+export * from "./UnaryOperator";
 export * from "./WhileStatement";

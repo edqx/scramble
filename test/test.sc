@@ -1,7 +1,4 @@
-add(a, b) = a + b;
-
-proc add(a, b) = a + b;
-
-proc add(a, b) {
-    return a + b;
-}
+if "hello" == "hello" then
+    print("1");
+else
+    print("2");

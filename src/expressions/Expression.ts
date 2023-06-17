@@ -5,6 +5,7 @@ export enum ExpressionKind {
     String,
     Keyword,
     Operator,
+    UnaryOperator,
     Parenthesis,
     FunctionCall,
     IfStatement,

@@ -35,7 +35,7 @@ export class CompilerError {
         if (note.position === undefined)
             return "";
 
-        const startPos = note.position instanceof FilePositionRange ? note.position.start : note.position;
+        const startPos = note.position instanceof FilePositionRange ? note.position.start : note.position.offset(-1);
         const endPos = note.position instanceof FilePositionRange ? note.position.end : note.position;
 
         const sourceLines = sourceCode.split("\n");
@@ -90,6 +90,6 @@ export class CompilerError {
         const errorText = this.errors.map(err => this.generateStringForNote(sourceCode, err, NoteType.Error, "", 4)).join("\n\n");
         const noteText = this.info.map(info => this.generateStringForNote(sourceCode, info, NoteType.Info, "     ", 2)).join("\n\n");
 
-        return chalk.bgRed((errIdx + 1) + ". E" + this.code.toString().padStart(3, "0") + " ") + errorText + "\n" + noteText;
+        return chalk.bgRed(chalk.whiteBright((errIdx + 1) + ". E" + this.code.toString().padStart(3, "0")) + " " + chalk.white(ErrorCode[this.code])) + errorText + "\n" + noteText;
     }
 }

@@ -26,8 +26,8 @@ export class AccessorExpression extends Expression {
                 break;
             }
         }
-        const right = astCollector.assertPop();
-        const left = astCollector.assertPop();
+        const right = astCollector.popLastExpression()!;
+        const left = astCollector.popLastExpression()!;
         astCollector.appendExpression(new AccessorExpression(left, right));
     }
 
