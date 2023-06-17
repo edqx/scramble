@@ -1,1 +1,1 @@
-if 5 == 3 then print("if") else if 3 == 54 then print("else if") else print("else");
+add(a, b) = a + b;

@@ -1,5 +1,5 @@
 import { AstCollector } from "./astCollector";
-import { IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, StringExpression, WhileStatementExpression } from "./expressions";
+import { IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, WhileStatementExpression } from "./expressions";
 import { KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, StatementBreakToken, StringToken, Token, TokenKind } from "./token";
 import { TokenReader } from "./tokenReader";
 
@@ -16,6 +16,8 @@ export function parseSingleTokenAst(token: Token, astCollector: AstCollector, to
         switch (token.keyword) {
             case "if": IfStatementExpression.read(token, astCollector, tokenReader); break;
             case "while": WhileStatementExpression.read(token, astCollector, tokenReader); break;
+            case "proc": ProcDeclarationExpression.read(token, astCollector, tokenReader); break;
+            case "return": ReturnStatementExpression.read(token, astCollector, tokenReader); break;
             default: KeywordExpression.read(token, astCollector, tokenReader);
         }
     } else if (token instanceof StatementBreakToken || token instanceof NewlineToken) {
@@ -29,13 +31,7 @@ export function parseAst(tokenReader: TokenReader) {
     const astCollector = new AstCollector;
     while (true) {
         const nextToken = tokenReader.getNextToken();
-        
         if (nextToken === undefined) break;
-
-        if (nextToken.getPrecedence() === null) {
-            parseSingleTokenAst(nextToken, astCollector, tokenReader);
-            continue;
-        }
 
         parseSingleTokenAst(nextToken, astCollector, tokenReader);
     }

@@ -1,10 +1,11 @@
+import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
 export type AnyCloseParenthesis = ")"|"]"|"}";
 
 export class CloseParenthesisToken extends Token {
-    static read(stringReader: StringReaderContext) {
+    static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {
         const parenthesis = stringReader.readOnceRegexMatch(/[)}\]]/);
         if (parenthesis === null) return null;
 

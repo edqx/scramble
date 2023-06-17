@@ -5,5 +5,7 @@ export * from "./Keyword";
 export * from "./Number";
 export * from "./Operator";
 export * from "./Parenthesis";
+export * from "./ProcDeclaration";
+export * from "./ReturnStatement";
 export * from "./String";
 export * from "./WhileStatement";

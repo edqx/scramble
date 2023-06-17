@@ -8,7 +8,7 @@ export class FunctionCallExpression extends Expression {
     args: Expression[];
 
     constructor(identifier: KeywordExpression, args: ParenthesisExpression) {
-        super(ExpressionKind.Keyword, FilePositionRange.contain(identifier.position, args.position));
+        super(ExpressionKind.FunctionCall, FilePositionRange.contain(identifier.position, args.position));
 
         this.identifier = identifier.keyword;
         this.args = args.expressions;

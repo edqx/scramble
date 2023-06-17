@@ -26,11 +26,6 @@ export class WhileStatementExpression extends Expression {
                         break;
                     }
         
-                    if (nextToken.getPrecedence() === null) {
-                        parseSingleTokenAst(nextToken, blockAst, tokenReader);
-                        continue;
-                    }
-        
                     parseSingleTokenAst(nextToken, blockAst, tokenReader);
                 }
                 break;
@@ -42,11 +37,6 @@ export class WhileStatementExpression extends Expression {
 
                 astCollector.appendExpression(new WhileStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!));
                 break;
-            }
-
-            if (nextToken.getPrecedence() === null) {
-                parseSingleTokenAst(nextToken, conditionAst, tokenReader);
-                continue;
             }
 
             parseSingleTokenAst(nextToken, conditionAst, tokenReader);

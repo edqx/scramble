@@ -1,9 +1,10 @@
+import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
 export class OperatorToken extends Token {
-    static read(stringReader: StringReaderContext) {
-        const operator = stringReader.readWhileRegexMatch(/[+-/*!=<>]/);
+    static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {
+        const operator = stringReader.readWhileRegexMatch(/[+\-/*!=<>]/);
         if (operator === null) return null;
 
         return new OperatorToken(operator, stringReader.getPositionRange());

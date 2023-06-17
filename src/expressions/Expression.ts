@@ -8,7 +8,9 @@ export enum ExpressionKind {
     Parenthesis,
     FunctionCall,
     IfStatement,
-    WhileStatement
+    WhileStatement,
+    ProcDeclaration,
+    ReturnStatement
 }
 
 export abstract class Expression {

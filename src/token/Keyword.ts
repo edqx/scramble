@@ -1,10 +1,11 @@
+import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
-const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do", "else"])
+const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do", "else", "return"])
 
 export class KeywordToken extends Token {
-    static read(stringReader: StringReaderContext) {
+    static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {
         const firstChar = stringReader.readOnceRegexMatch(/[a-zA-Z_$]/);
         if (firstChar === null) return null;
 
@@ -19,7 +20,7 @@ export class KeywordToken extends Token {
 
     getPrecedence(): number|null {
         if (STATEMENT_KEYWORDS.has(this.keyword))
-            return -999;
+            return -998;
 
         return null;
     }

@@ -1,8 +1,9 @@
+import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
 export class StatementBreakToken extends Token {
-    static read(stringReader: StringReaderContext) {
+    static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {
         const br = stringReader.readWhileRegexMatch(/[;]/);
         if (br === null) return null;
 

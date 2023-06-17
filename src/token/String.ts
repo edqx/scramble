@@ -1,8 +1,9 @@
+import { ErrorCollector } from "../errorCollector";
 import { EOF, FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
 export class StringToken extends Token {
-    static read(stringReader: StringReaderContext) {
+    static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {
         const stringBegin = stringReader.readOnceRegexMatch(/\"/);
         if (stringBegin === null) return null;
         

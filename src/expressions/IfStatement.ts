@@ -34,11 +34,6 @@ export class IfStatementExpression extends Expression {
                 return blockAst;
             }
 
-            if (nextToken.getPrecedence() === null) {
-                parseSingleTokenAst(nextToken, blockAst, tokenReader);
-                continue;
-            }
-
             parseSingleTokenAst(nextToken, blockAst, tokenReader);
         }
     }

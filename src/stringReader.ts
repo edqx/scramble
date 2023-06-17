@@ -58,7 +58,10 @@ export class StringReaderContext {
             return FilePositionRange.null();
         }
 
-        return new FilePositionRange(this.start, this.end);
+        return new FilePositionRange(
+            new FilePosition(this.start.cursor, this.start.line, this.start.column),
+            new FilePosition(this.end.cursor, this.end.line, this.end.column)
+        );
     }
 }
 
@@ -104,6 +107,10 @@ export class FilePosition {
     }
 
     constructor(public cursor: number, public line: number, public column: number) {}
+
+    offset(num: number) {
+        return new FilePosition(this.column + num, this.line, this.column + num);
+    }
 }
 
 export class FilePositionRange {
