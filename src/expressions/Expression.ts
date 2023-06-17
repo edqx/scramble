@@ -10,7 +10,12 @@ export enum ExpressionKind {
     IfStatement,
     WhileStatement,
     ProcDeclaration,
-    ReturnStatement
+    ParameterDeclaration,
+    ReturnStatement,
+    Assignment,
+    Accessor,
+    MacroDeclaration,
+    TypeGuard
 }
 
 export abstract class Expression {

@@ -53,6 +53,14 @@ export class StringReaderContext {
         return this.readOnceMatch(char => regex.test(char));
     }
 
+    moveBack() {
+        if (this.start === null) {
+            this.start = this.reader.getPosition();
+        }
+        this.reader.moveBack();
+        this.end = this.reader.getPosition();
+    }
+
     getPositionRange() {
         if (this.start === null || this.end === null) {
             return FilePositionRange.null();
@@ -67,9 +75,11 @@ export class StringReaderContext {
 
 export class StringReader {
     protected pos: FilePosition;
+    protected lineColumns: number[];
         
     constructor(public readonly str: string) {
         this.pos = FilePosition.null();
+        this.lineColumns = [];
     }
 
     getPosition() {
@@ -84,12 +94,24 @@ export class StringReader {
         const char = this.str[this.pos.cursor];
         this.pos.cursor++;
         if (char === "\n") {
+            this.lineColumns[this.pos.line] = this.pos.column;
             this.pos.column = 0;
             this.pos.line++;
         } else {
             this.pos.column++;
         }
         return char;
+    }
+
+    moveBack() {
+        this.pos.cursor--;
+        const char = this.str[this.pos.cursor];
+        if (char === "\n") {
+            this.pos.line--;
+            this.pos.column = this.lineColumns[this.pos.line];
+        } else {
+            this.pos.column--;
+        }
     }
 
     peekNextChar() {

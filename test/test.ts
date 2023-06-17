@@ -16,7 +16,7 @@ const tokens = readFileTokens(text, errorCollector);
 console.log(tokens);
 fs.writeFileSync(path.resolve(__dirname, "./tokens.json"), JSON.stringify(tokens, undefined, 4), "utf8");
 
-console.log(util.inspect(JSON.parse(JSON.stringify(parseAst(new TokenReader(tokens)), (key, val) => {
+console.log(util.inspect(JSON.parse(JSON.stringify(parseAst(new TokenReader(tokens), errorCollector), (key, val) => {
     if (key === "position") return undefined;
     if (key === "kind") return ExpressionKind[val];
     return val;

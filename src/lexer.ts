@@ -1,6 +1,7 @@
 import { ErrorCollector } from "./errorCollector";
 import { StringReader } from "./stringReader";
-import { CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, StatementBreakToken, StringToken, Token } from "./token";
+import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token } from "./token";
+import { TypeIndicatorToken } from "./token/TypeIndicator";
 
 function readSingleToken(stringReader: StringReader, errorCollector: ErrorCollector) {
     const context = stringReader.createContext();
@@ -28,6 +29,15 @@ function readSingleToken(stringReader: StringReader, errorCollector: ErrorCollec
     
     const newline = NewlineToken.read(context, errorCollector);
     if (newline !== null) return newline;
+
+    const accessor = AccessorToken.read(context, errorCollector);
+    if (accessor !== null) return accessor;
+
+    const typeIndicator = TypeIndicatorToken.read(context, errorCollector);
+    if (typeIndicator !== null) return typeIndicator;
+
+    const separator = SeparatorToken.read(context, errorCollector);
+    if (separator !== null) return separator;
 
     context.readNextChar();
     context.readWhileRegexMatch(/\s/);

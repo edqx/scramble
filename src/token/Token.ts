@@ -8,7 +8,10 @@ export enum TokenKind {
     OpenParenthesis,
     CloseParenthesis,
     Newline,
-    StatementBreak
+    StatementBreak,
+    Accessor,
+    TypeIndicator,
+    Separator
 }
 
 export abstract class Token {

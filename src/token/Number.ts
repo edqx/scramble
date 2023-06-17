@@ -16,12 +16,14 @@ export class NumberToken extends Token {
 
         const fractionalPart = stringReader.readWhileRegexMatch(/\d/);
         if (fractionalPart === null) {
+            if (integerPart === null) {
+                stringReader.moveBack();
+                return null;
+            }
             errorCollector.addError(
                 new CompilerError(ErrorCode.MissingFractionalPart)
                     .addError(stringReader.getPositionRange().end, "Missing fractional part")
             );
-            if (integerPart === null)
-                return null;
             return new NumberToken(`${integerPart}`, stringReader.getPositionRange());
         }
 

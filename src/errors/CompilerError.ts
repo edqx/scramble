@@ -81,7 +81,7 @@ export class CompilerError {
                 }
             }
         }
-        const indent = " ".repeat(maxLineLength + 4 + endPos.column);
+        const indent = " ".repeat(maxLineLength + 3 + endPos.column);
         out += "\n" + indent + colorFunction("^ " + note.note.replace(/\n/g, "\n  " + indent));
         return out.split("\n").map(line => indentation + line).join("\n");
     }

@@ -17,9 +17,9 @@ export class OperatorToken extends Token {
     getPrecedence() {
         switch (this.operator) {
         case "=": return 0;
-        case "==": case ">": case "<": case "!=": return 1;
-        case "+": case "-": return 2;
-        case "*": case "/": return 3;
+        case "==": case ">": case "<": case "!=": return 2;
+        case "+": case "-": return 3;
+        case "*": case "/": return 4;
         default: return 0;
         }
     }

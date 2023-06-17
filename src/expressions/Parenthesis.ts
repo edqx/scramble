@@ -1,5 +1,6 @@
 import { parseAst } from "../ast";
 import { AstCollector } from "../astCollector";
+import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange } from "../stringReader";
 import { CloseParenthesisToken, OpenParenthesisToken, Token } from "../token";
 import { TokenReader } from "../tokenReader";
@@ -8,7 +9,7 @@ import { FunctionCallExpression } from "./FunctionCall";
 import { KeywordExpression } from "./Keyword";
 
 export class ParenthesisExpression extends Expression {
-    static read(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader) {
+    static read(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         const parenthesisStack: OpenParenthesisToken[] = [ openParenthesisToken ];
         const innerTokens: Token[] = [];
         while (true) {
@@ -22,7 +23,7 @@ export class ParenthesisExpression extends Expression {
                     throw new Error("Unmatched parenthesis");
                     
                 if (parenthesisStack.length === 0) {
-                    const innerExpressions = parseAst(new TokenReader(innerTokens)).expressions;
+                    const innerExpressions = parseAst(new TokenReader(innerTokens), errorCollector).expressions;
                     const parenthesisExpression = new ParenthesisExpression(innerExpressions, openParenthesisToken, nextToken);
                     const last = astCollector.peekLast();
                     if (last instanceof KeywordExpression) {

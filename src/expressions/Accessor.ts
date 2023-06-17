@@ -1,12 +1,13 @@
 import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
-import { KeywordToken } from "../token";
+import { FilePositionRange } from "../stringReader";
+import { AccessorToken } from "../token";
 import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 
-export class ReturnStatementExpression extends Expression {
-    static read(returnToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+export class AccessorExpression extends Expression {
+    static read(accessorToken: AccessorToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         while (true) {
             const nextToken = tokenReader.getNextToken();
 
@@ -18,18 +19,19 @@ export class ReturnStatementExpression extends Expression {
                 continue;
             }
 
-            if (tokenPrecedence > returnToken.getPrecedence()!) {
+            if (tokenPrecedence > accessorToken.getPrecedence()) {
                 parseSingleTokenAst(nextToken, astCollector, tokenReader, errorCollector);
             } else {
                 tokenReader.moveBack();
                 break;
             }
         }
-        const expression = astCollector.assertPop();
-        astCollector.appendExpression(new ReturnStatementExpression(expression));
+        const right = astCollector.assertPop();
+        const left = astCollector.assertPop();
+        astCollector.appendExpression(new AccessorExpression(left, right));
     }
 
-    constructor(public readonly expression: Expression) {
-        super(ExpressionKind.ReturnStatement, expression.position);
+    constructor(public readonly base: Expression, public readonly property: Expression) {
+        super(ExpressionKind.Accessor, FilePositionRange.contain(base.position, property.position));
     }
 }
