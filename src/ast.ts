@@ -1,7 +1,7 @@
 import { AstCollector } from "./astCollector";
 import { ErrorCollector } from "./errorCollector";
-import { CompilerError, ErrorCode } from "./errors";
-import { AccessorExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, TypeGuardExpression, WhileStatementExpression } from "./expressions";
+import { CompilerError, ErrorCode } from "./error";
+import { AccessorExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, TypeGuardExpression, WhileStatementExpression } from "./expression";
 import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token, TokenKind } from "./token";
 import { TypeIndicatorToken } from "./token/TypeIndicator";
 import { TokenReader } from "./tokenReader";

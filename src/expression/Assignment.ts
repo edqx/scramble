@@ -1,6 +1,6 @@
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
-import { CompilerError, ErrorCode } from "../errors";
+import { CompilerError, ErrorCode } from "../error";
 import { FilePositionRange } from "../stringReader";
 import { OperatorToken } from "../token";
 import { AccessorExpression } from "./Accessor";

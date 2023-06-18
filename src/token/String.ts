@@ -1,5 +1,5 @@
 import { ErrorCollector } from "../errorCollector";
-import { CompilerError, ErrorCode } from "../errors";
+import { CompilerError, ErrorCode } from "../error";
 import { EOF, FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 

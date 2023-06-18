@@ -5,7 +5,7 @@ import path from "node:path";
 import { readFileTokens } from "../src/lexer";
 import { parseAst } from "../src/ast";
 import { TokenReader } from "../src/tokenReader";
-import { ExpressionKind } from "../src/expressions";
+import { ExpressionKind } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
 
 const errorCollector = new ErrorCollector;

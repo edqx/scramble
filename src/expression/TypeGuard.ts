@@ -1,7 +1,7 @@
 import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
-import { CompilerError, ErrorCode } from "../errors";
+import { CompilerError, ErrorCode } from "../error";
 import { FilePositionRange } from "../stringReader";
 import { TypeIndicatorToken } from "../token/TypeIndicator";
 import { TokenReader } from "../tokenReader";

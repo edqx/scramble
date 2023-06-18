@@ -1,8 +1,8 @@
 import { parseSingleTokenAst } from "../ast";
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
-import { CompilerError, ErrorCode } from "../errors";
-import { FilePosition, FilePositionRange } from "../stringReader";
+import { CompilerError, ErrorCode } from "../error";
+import { FilePositionRange } from "../stringReader";
 import { OperatorToken } from "../token";
 import { TokenReader } from "../tokenReader";
 import { AssignmentExpression } from "./Assignment";

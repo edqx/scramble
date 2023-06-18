@@ -1,4 +1,4 @@
-import { Expression } from "./expressions";
+import { Expression } from "./expression";
 
 export class AstCollector {
     expressions: Expression[];

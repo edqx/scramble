@@ -1,4 +1,4 @@
-import { CompilerError } from "./errors";
+import { CompilerError } from "./error";
 
 export class ErrorCollector {
     protected _errors: CompilerError[];
