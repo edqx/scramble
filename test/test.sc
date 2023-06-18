@@ -1,4 +1,3 @@
-if "hello" == "hello" then
-    print("1");
-else
-    print("2");
+proc add(a: number, b: number) {
+    return a + b;
+}
