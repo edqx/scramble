@@ -1,12 +1,10 @@
-add(3, 4);
-function add(a, b) {
-    
+let a = 1;
+
+proc c() {
+   a + b + c;
+   let c = 2;
 }
 
-function test_scope() {
-    function nope() {
-        
-    }
-}
+let b = 2;
 
-nope();
+c();

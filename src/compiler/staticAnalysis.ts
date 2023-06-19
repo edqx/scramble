@@ -11,7 +11,7 @@ function readProcDeclaration(
     symbols: SymbolDeclarationStore,
     errorCollector: ErrorCollector
 ) {
-    const procDeclarationSymbol = scope.getIdentifierReference(procDeclarationExpression.identifier);
+    const procDeclarationSymbol = scope.symbols.get(procDeclarationExpression.identifier);
     if (procDeclarationSymbol === undefined || !(procDeclarationSymbol instanceof ProcedureSymbol)) throw new Error("??");
 
     for (const parameter of procDeclarationExpression.parameters) {
@@ -28,7 +28,7 @@ function readVariableDeclaration(
     symbols: SymbolDeclarationStore,
     errorCollector: ErrorCollector
 ) {
-    const varDeclarationSymbol = scope.getIdentifierReference(varDeclarationExpression.identifier);
+    const varDeclarationSymbol = scope.symbols.get(varDeclarationExpression.identifier);
     if (varDeclarationSymbol === undefined || !(varDeclarationSymbol instanceof VariableSymbol)) throw new Error("??");
 
     staticallyAnalyseExpression(scope, scopeTraversal, varDeclarationExpression.initialValue, symbols, errorCollector);
@@ -36,7 +36,7 @@ function readVariableDeclaration(
 
 function readDeclarationExpression(scope: ProcedureSymbol, expression: Expression, symbols: SymbolDeclarationStore, errorCollector: ErrorCollector) {
     if (expression instanceof ProcDeclarationExpression) {
-        const existingRef = scope.getIdentifierReference(expression.identifier);
+        const existingRef = scope.symbols.get(expression.identifier);
         if (existingRef) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.IdentifierInUse)
@@ -47,7 +47,7 @@ function readDeclarationExpression(scope: ProcedureSymbol, expression: Expressio
         }
         symbols.addProcedure(expression, scope, expression.identifier);
     } else if (expression instanceof VariableDeclarationExpression) {
-        const existingRef = scope.getIdentifierReference(expression.identifier);
+        const existingRef = scope.symbols.get(expression.identifier);
         if (existingRef) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.IdentifierInUse)
@@ -81,7 +81,7 @@ export function staticallyAnalyseExpression(
                 );
                 return;
             }
-            if (!symbol.flags.has(SymbolFlag.Hoisted) && !scopeTraversal.has(symbol.declaredAt)) {
+            if (!symbol.flags.has(SymbolFlag.Hoisted) && !scopeTraversal.has(symbol.declaredAt) && symbol.parent === scope) {
                 errorCollector.addError(
                     new CompilerError(ErrorCode.IdentifierNotFound)
                         .addError(expression.position, "Use of identifier before declaration")

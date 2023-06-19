@@ -47,8 +47,6 @@ export class ProcedureSymbol extends CodeSymbol {
     }
 
     getIdentifierReference(name: string): CodeSymbol|undefined {
-        if (name === this.name) return this;
-
         const symbol = this.symbols.get(name);
         if (symbol === undefined) return this.parent?.getIdentifierReference(name) || undefined;
         return symbol;

@@ -7,7 +7,7 @@ import { parseAst } from "../src/ast";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
-import { ProcedureSymbol, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpression } from "../src/compiler";
+import { ProcedureSymbol, SymbolDeclarationStore, staticallyAnalyseBlock } from "../src/compiler";
 
 const errorCollector = new ErrorCollector;
 
