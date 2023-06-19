@@ -42,7 +42,7 @@ export class ParenthesisExpression extends Expression {
                     
                 if (parenthesisStack.length === 0) {
                     const innerExpressions = parseAst(new TokenReader(innerTokens), errorCollector).expressions;
-                    const parenthesisExpression = new ParenthesisExpression(innerExpressions, openParenthesisToken, nextToken);
+                    const parenthesisExpression = new ParenthesisExpression(openParenthesisToken, nextToken, innerExpressions);
                     const last = astCollector.peekLastExpression();
                     if (last instanceof KeywordExpression) {
                         const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
@@ -59,7 +59,7 @@ export class ParenthesisExpression extends Expression {
         }
     }
 
-    constructor(public readonly expressions: Expression[], openParenthesisToken: OpenParenthesisToken, closeParenthesisToken: CloseParenthesisToken) {
+    constructor(openParenthesisToken: OpenParenthesisToken, closeParenthesisToken: CloseParenthesisToken, public readonly expressions: Expression[]) {
         super(ExpressionKind.Parenthesis, FilePositionRange.contain(openParenthesisToken.position, closeParenthesisToken.position));
     }
 }

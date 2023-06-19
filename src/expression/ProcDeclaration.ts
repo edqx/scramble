@@ -112,6 +112,7 @@ export class ProcDeclarationExpression extends Expression {
             }
             astCollector.appendExpression(
                 new ProcDeclarationExpression(
+                    procKeywordToken,
                     identifierToken,
                     this.parseParameters(procKeywordToken, parametersList.expressions, errorCollector),
                     expr
@@ -127,8 +128,13 @@ export class ProcDeclarationExpression extends Expression {
     }
 
     identifier: string;
-    constructor(identifier: KeywordToken, public readonly parameters: ParameterDeclarationExpression[], public readonly block: Expression) {
-        super(ExpressionKind.ProcDeclaration, FilePositionRange.contain(identifier.position, block.position));
+    constructor(
+        procKeyword: KeywordToken,
+        identifier: KeywordToken,
+        public readonly parameters: ParameterDeclarationExpression[],
+        public readonly block: Expression
+    ) {
+        super(ExpressionKind.ProcDeclaration, FilePositionRange.contain(procKeyword.position, block.position));
         this.identifier = identifier.keyword;
     }
 }

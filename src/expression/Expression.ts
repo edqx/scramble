@@ -16,7 +16,8 @@ export enum ExpressionKind {
     Assignment,
     Accessor,
     MacroDeclaration,
-    TypeGuard
+    TypeGuard,
+    VariableDeclaration
 }
 
 export abstract class Expression {

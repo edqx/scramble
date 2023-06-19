@@ -41,7 +41,7 @@ export class OperatorExpression extends Expression {
             );
             return;
         }
-        if (left === undefined) return astCollector.appendExpression(new UnaryOperatorExpression(right, operatorToken.operator));
+        if (left === undefined) return astCollector.appendExpression(new UnaryOperatorExpression(operatorToken, right, operatorToken.operator));
         if (operatorToken.operator === "=") {
             return AssignmentExpression.fromOperator(left, right, operatorToken, astCollector, errorCollector);
         }

@@ -47,7 +47,7 @@ export class WhileStatementExpression extends Expression {
                     }
 
                     if (nextToken2 instanceof NewlineToken || nextToken2 instanceof StatementBreakToken) {
-                        astCollector.appendExpression(new WhileStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!));
+                        astCollector.appendExpression(new WhileStatementExpression(whileKeywordToken, conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!));
                         break;
                     }
         
@@ -60,7 +60,7 @@ export class WhileStatementExpression extends Expression {
                 const blockAst = new AstCollector;
                 parseSingleTokenAst(nextToken, blockAst, tokenReader, errorCollector);
 
-                astCollector.appendExpression(new WhileStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!));
+                astCollector.appendExpression(new WhileStatementExpression(whileKeywordToken, conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!));
                 break;
             }
 
@@ -68,7 +68,7 @@ export class WhileStatementExpression extends Expression {
         }
     }
 
-    constructor(public readonly condition: Expression, public readonly block: Expression) {
-        super(ExpressionKind.WhileStatement, FilePositionRange.contain(condition.position, block.position));
+    constructor(whileKeyword: KeywordToken, public readonly condition: Expression, public readonly block: Expression) {
+        super(ExpressionKind.WhileStatement, FilePositionRange.contain(whileKeyword.position, block.position));
     }
 }

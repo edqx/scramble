@@ -8,7 +8,14 @@ import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 
 export class IfStatementExpression extends Expression {
-    protected static attemptReadElse(conditionAst: AstCollector, blockAst: AstCollector, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+    protected static attemptReadElse(
+        ifKeyword: KeywordToken,
+        conditionAst: AstCollector,
+        blockAst: AstCollector,
+        astCollector: AstCollector,
+        tokenReader: TokenReader,
+        errorCollector: ErrorCollector
+    ) {
         tokenReader.moveNextWhile(token => token instanceof NewlineToken);
         const nextToken = tokenReader.peekNextToken();
         if (nextToken instanceof KeywordToken && nextToken.keyword === "else") {
@@ -23,11 +30,11 @@ export class IfStatementExpression extends Expression {
                         .addInfo(nextToken.position, "'else' statement expects a code block following immediately after")
                 );
             } else {
-                astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, elseBlockAst.getPrimeExpression()));
+                astCollector.appendExpression(new IfStatementExpression(ifKeyword, conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, elseBlockAst.getPrimeExpression()));
                 return;
             }
         }
-        astCollector.appendExpression(new IfStatementExpression(conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, undefined));
+        astCollector.appendExpression(new IfStatementExpression(ifKeyword, conditionAst.getPrimeExpression()!, blockAst.getPrimeExpression()!, undefined));
     }
 
     protected static readSingleStatement(tokenReader: TokenReader, allowElse: boolean, errorCollector: ErrorCollector) {
@@ -50,7 +57,14 @@ export class IfStatementExpression extends Expression {
         }
     }
 
-    protected static readThen(thenKeyword: KeywordToken, conditionAst: AstCollector, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+    protected static readThen(
+        ifKeyword: KeywordToken,
+        thenKeyword: KeywordToken,
+        conditionAst: AstCollector,
+        astCollector: AstCollector,
+        tokenReader: TokenReader,
+        errorCollector: ErrorCollector
+    ) {
         tokenReader.moveNextWhile(token => token instanceof NewlineToken);
         const blockAst = this.readSingleStatement(tokenReader, true, errorCollector);
         if (blockAst.getPrimeExpression() === undefined) {
@@ -61,13 +75,20 @@ export class IfStatementExpression extends Expression {
             );
             return;
         }
-        this.attemptReadElse(conditionAst, blockAst, astCollector, tokenReader, errorCollector);
+        this.attemptReadElse(ifKeyword, conditionAst, blockAst, astCollector, tokenReader, errorCollector);
     }
 
-    protected static readBlock(blockToken: OpenParenthesisToken, conditionAst: AstCollector, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+    protected static readBlock(
+        ifKeyword: KeywordToken,
+        blockToken: OpenParenthesisToken,
+        conditionAst: AstCollector,
+        astCollector: AstCollector,
+        tokenReader: TokenReader,
+        errorCollector: ErrorCollector
+    ) {
         const blockAst = new AstCollector;
         parseSingleTokenAst(blockToken, blockAst, tokenReader, errorCollector);
-        this.attemptReadElse(conditionAst, blockAst, astCollector, tokenReader, errorCollector);
+        this.attemptReadElse(ifKeyword, conditionAst, blockAst, astCollector, tokenReader, errorCollector);
     }
 
     static read(ifKeywordToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -94,12 +115,12 @@ export class IfStatementExpression extends Expression {
             }
 
             if (nextToken instanceof KeywordToken && nextToken.keyword === "then") {
-                this.readThen(nextToken, conditionAst, astCollector, tokenReader, errorCollector);
+                this.readThen(ifKeywordToken, nextToken, conditionAst, astCollector, tokenReader, errorCollector);
                 break;
             }
 
             if (nextToken instanceof OpenParenthesisToken && nextToken.parenthesis === "{") {
-                this.readBlock(nextToken, conditionAst, astCollector, tokenReader, errorCollector);
+                this.readBlock(ifKeywordToken, nextToken, conditionAst, astCollector, tokenReader, errorCollector);
                 break;
             }
 
@@ -107,7 +128,12 @@ export class IfStatementExpression extends Expression {
         }
     }
 
-    constructor(public readonly condition: Expression, public readonly block: Expression, public readonly elseBlock: Expression|undefined) {
-        super(ExpressionKind.IfStatement, FilePositionRange.contain(condition.position, block.position));
+    constructor(
+        ifKeyword: KeywordToken,
+        public readonly condition: Expression,
+        public readonly block: Expression,
+        public readonly elseBlock: Expression|undefined
+    ) {
+        super(ExpressionKind.IfStatement, FilePositionRange.contain(ifKeyword.position, elseBlock?.position || block.position));
     }
 }

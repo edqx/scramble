@@ -7,5 +7,9 @@ export enum ErrorCode {
     MissingCodeBlock,
     ExpectedIdentifier,
     UnexpectedTermination,
-    MissingRightHandExpression
+    MissingRightHandExpression,
+    ExpectedVariableDeclaration,
+    IdentifierNotFound,
+    VariableNotDeclared,
+    IdentifierInUse
 }
