@@ -1,7 +1,10 @@
-proc print(a: string) {
+proc log(message: string) {
 
 }
 
-proc one() {
-   print("yo yo yo");
+proc hello_world(a = 8, b = a) {
+    a = a + 1;
+    log(a + 5);
 }
+
+hello_world();

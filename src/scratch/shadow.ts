@@ -1,7 +1,7 @@
 import { Value } from "./values";
 
 export enum ShadowState {
-    HasShadow,
+    HasShadow = 1,
     HasBlock,
     HasBlockShadow
 }

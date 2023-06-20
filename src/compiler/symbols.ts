@@ -8,8 +8,11 @@ export enum SymbolType {
 
 export enum SymbolFlag {
     Hoisted,
-    UsedRecursively,
-    UsedAsValue
+    VariableIsParam,
+    ParamReassigned,
+    ProcUsedRecursively,
+    ProcUsedAsValue,
+    VariableAllocatedOnHeap
 }
 
 export abstract class CodeSymbol {
