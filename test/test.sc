@@ -1,10 +1,11 @@
-proc log(message: string) {
+class Person {
+    alive: boolean;
+    name: string;
+    age: number;
 
+    proc kill() {
+        static a = 3;
+    }
 }
 
-proc hello_world(a = 8, b = a) {
-    a = a + 1;
-    log(a + 5);
-}
-
-hello_world();
+let person: Person = Person{ name = "Edward"; age = 18 };

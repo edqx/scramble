@@ -12,5 +12,6 @@ export enum ErrorCode {
     IdentifierNotFound,
     VariableNotDeclared,
     IdentifierInUse,
-    ExpectedFieldAssignment
+    ExpectedFieldAssignment,
+    ExpectedFieldOrMethod
 }

@@ -1,8 +1,8 @@
 import { CompilerError, ErrorCode } from "../error";
 import { ErrorCollector } from "../errorCollector";
-import { Expression, FunctionCallExpression, KeywordExpression, ProcDeclarationExpression, VariableDeclarationExpression, ParenthesisExpression, OperatorExpression, AccessorExpression, AssignmentExpression, ParameterDeclarationExpression, ReturnStatementExpression, TypeGuardExpression, UnaryOperatorExpression, IfStatementExpression, WhileStatementExpression } from "../expression";
+import { Expression, FunctionCallExpression, KeywordExpression, ProcDeclarationExpression, VariableDeclarationExpression, ParenthesisExpression, OperatorExpression, AccessorExpression, AssignmentExpression, ParameterDeclarationExpression, ReturnStatementExpression, TypeGuardExpression, UnaryOperatorExpression, IfStatementExpression, WhileStatementExpression, ClassDeclarationExpression } from "../expression";
 import { SymbolDeclarationStore } from "./symbolDeclarationStore";
-import { ProcedureSymbol, SymbolFlag, VariableSymbol } from "./symbols";
+import { ClassSymbol, FieldSymbol, ProcedureSymbol, SymbolFlag, VariableSymbol } from "./symbols";
 
 function readProcDeclaration(
     scope: ProcedureSymbol,
@@ -12,6 +12,23 @@ function readProcDeclaration(
     errorCollector: ErrorCollector
 ) {
     const procDeclarationSymbol = scope.symbols.get(procDeclarationExpression.identifier);
+    if (procDeclarationSymbol === undefined || !(procDeclarationSymbol instanceof ProcedureSymbol)) throw new Error("??");
+
+    for (const parameter of procDeclarationExpression.parameters) {
+        staticallyAnalyseExpression(procDeclarationSymbol, scopeTraversal, parameter, symbols, errorCollector);
+    }
+    scopeTraversal.add(procDeclarationExpression);
+    staticallyAnalyseExpression(procDeclarationSymbol, scopeTraversal, procDeclarationExpression.block, symbols, errorCollector);
+}
+
+function readMethodProcDeclaration(
+    scope: ClassSymbol,
+    scopeTraversal: Set<Expression>,
+    procDeclarationExpression: ProcDeclarationExpression,
+    symbols: SymbolDeclarationStore,
+    errorCollector: ErrorCollector
+) {
+    const procDeclarationSymbol = scope.children.get(procDeclarationExpression.identifier);
     if (procDeclarationSymbol === undefined || !(procDeclarationSymbol instanceof ProcedureSymbol)) throw new Error("??");
 
     for (const parameter of procDeclarationExpression.parameters) {
@@ -40,6 +57,19 @@ function readVariableDeclaration(
     staticallyAnalyseExpression(scope, scopeTraversal, varDeclarationExpression.initialValue, symbols, errorCollector);
 }
 
+function readFieldDeclaration(
+    scope: ClassSymbol,
+    scopeTraversal: Set<Expression>,
+    typeGuardExpression: TypeGuardExpression,
+    symbols: SymbolDeclarationStore,
+    errorCollector: ErrorCollector
+) {
+    const varDeclarationSymbol = scope.children.get(typeGuardExpression.identifier.keyword);
+    if (varDeclarationSymbol === undefined || !(varDeclarationSymbol instanceof FieldSymbol)) throw new Error("??");
+
+    // todo: validate types
+}
+
 function readParameterDeclaration(
     scope: ProcedureSymbol,
     scopeTraversal: Set<Expression>,
@@ -55,6 +85,31 @@ function readParameterDeclaration(
 
     const paramVariable = symbols.addVariable(parameterDeclarationExpression, scope, parameterDeclarationExpression.identifier);
     paramVariable.flags.add(SymbolFlag.VariableIsParam);
+}
+
+function readClassDeclaration(
+    scope: ProcedureSymbol,
+    scopeTraversal: Set<Expression>,
+    classDeclarationExpression: ClassDeclarationExpression,
+    symbols: SymbolDeclarationStore,
+    errorCollector: ErrorCollector
+) {
+    const classDeclarationSymbol = scope.symbols.get(classDeclarationExpression.identifier);
+    if (classDeclarationSymbol === undefined || !(classDeclarationSymbol instanceof ClassSymbol)) throw new Error("??");
+    
+    for (const field of classDeclarationExpression.fields) {
+        symbols.addField(field, classDeclarationSymbol, field.identifier.keyword);
+    }
+    for (const proc of classDeclarationExpression.methods) {
+        symbols.addProcedure(proc, classDeclarationSymbol, proc.identifier);
+    }
+
+    for (const field of classDeclarationExpression.fields) {
+        readFieldDeclaration(classDeclarationSymbol, scopeTraversal, field, symbols, errorCollector);
+    }
+    for (const method of classDeclarationExpression.methods) {
+        readMethodProcDeclaration(classDeclarationSymbol, scopeTraversal, method, symbols, errorCollector);
+    }
 }
 
 function readDeclarationExpression(scope: ProcedureSymbol, expression: Expression, symbols: SymbolDeclarationStore, errorCollector: ErrorCollector) {
@@ -80,6 +135,17 @@ function readDeclarationExpression(scope: ProcedureSymbol, expression: Expressio
             return;
         }
         symbols.addVariable(expression, scope, expression.identifier);
+    } else if (expression instanceof ClassDeclarationExpression) {
+        const existingRef = scope.symbols.get(expression.identifier);
+        if (existingRef) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.IdentifierInUse)
+                    .addError(expression.position, "Identifier in use")
+                    .addInfo(existingRef.declaredAt.position, `'${existingRef.name}' has already been declared in this scope`)
+            );
+            return;
+        }
+        symbols.addClass(expression, scope, expression.identifier);
     }
 }
 
@@ -127,7 +193,7 @@ export function staticallyAnalyseExpression(
                 );
                 return;
             }
-            let parent: ProcedureSymbol|undefined = scope;
+            let parent: ProcedureSymbol|ClassSymbol|undefined = scope;
             while (parent !== undefined) {
                 if (symbol === parent) {
                     symbol.flags.add(SymbolFlag.ProcUsedRecursively);
@@ -182,6 +248,8 @@ export function staticallyAnalyseExpression(
         } else if (expression instanceof WhileStatementExpression) {
             staticallyAnalyseExpression(scope, scopeTraversal, expression.condition, symbols, errorCollector);
             staticallyAnalyseExpression(scope, scopeTraversal, expression.block, symbols, errorCollector);
+        } else if (expression instanceof ClassDeclarationExpression) {
+            readClassDeclaration(scope, scopeTraversal, expression, symbols, errorCollector);
         }
         scopeTraversal.add(expression);
     }

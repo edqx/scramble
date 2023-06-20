@@ -1,5 +1,5 @@
 import { Expression } from "../expression";
-import { CodeSymbol, MacroSymbol, ProcedureSymbol, VariableSymbol } from "./symbols";
+import { ClassSymbol, CodeSymbol, FieldSymbol, MacroSymbol, ProcedureSymbol, VariableSymbol } from "./symbols";
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%()*+,-./:;=?@[]^_\\`{|}~";
 export class SymbolDeclarationStore {
@@ -30,12 +30,32 @@ export class SymbolDeclarationStore {
         return variable;
     }
 
-    addProcedure(expression: Expression, parent: ProcedureSymbol, name: string) {
+    addProcedure(expression: Expression, parent: ProcedureSymbol|ClassSymbol, name: string) {
         const id = this.nextId();
         const proc = new ProcedureSymbol(id, parent, name, expression);
-        parent.addSymbol(proc);
+        if (parent instanceof ClassSymbol) {
+            parent.addChild(proc);
+        } else {
+            parent.addSymbol(proc);
+        }
         this.expressionToSymbol.set(expression, proc);
         return proc;
+    }
+
+    addField(expression: Expression, parent: ClassSymbol, name: string) {
+        const id = this.nextId();
+        const field = new FieldSymbol(id, parent, name, expression);
+        parent.addChild(field);
+        this.expressionToSymbol.set(expression, field);
+        return field;
+    }
+
+    addClass(expression: Expression, parent: ProcedureSymbol, name: string) {
+        const id = this.nextId();
+        const klass = new ClassSymbol(id, parent, name, expression);
+        parent.addSymbol(klass);
+        this.expressionToSymbol.set(expression, klass);
+        return klass;
     }
 
     addMacro(expression: Expression, parent: ProcedureSymbol, name: string) {

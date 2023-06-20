@@ -1,5 +1,3 @@
-import { Block } from "../scratch";
-
 export class VariableOutline {
     constructor(public readonly id: string, initialValue: number|string) {}
 }

@@ -1,7 +1,7 @@
 import { AstCollector } from "./astCollector";
 import { ErrorCollector } from "./errorCollector";
 import { CompilerError, ErrorCode } from "./error";
-import { AccessorExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, TypeGuardExpression, VariableDeclarationExpression, WhileStatementExpression, ParenthesisExpression } from "./expression";
+import { AccessorExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, TypeGuardExpression, VariableDeclarationExpression, WhileStatementExpression, ParenthesisExpression, ClassDeclarationExpression } from "./expression";
 import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token, TokenKind } from "./token";
 import { TypeIndicatorToken } from "./token/TypeIndicator";
 import { TokenReader } from "./tokenReader";
@@ -22,6 +22,7 @@ export function parseSingleTokenAst(token: Token, astCollector: AstCollector, to
             case "proc": ProcDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
             case "return": ReturnStatementExpression.read(token, astCollector, tokenReader, errorCollector); break;
             case "let": case "static": VariableDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
+            case "class": ClassDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
             default: KeywordExpression.read(token, astCollector, tokenReader, errorCollector);
         }
     } else if (token instanceof AccessorToken) {

@@ -18,7 +18,8 @@ export enum ExpressionKind {
     MacroDeclaration,
     TypeGuard,
     VariableDeclaration,
-    StructFields
+    StructFields,
+    ClassDeclaration
 }
 
 export abstract class Expression {

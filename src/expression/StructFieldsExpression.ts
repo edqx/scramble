@@ -1,5 +1,5 @@
 import { FilePositionRange } from "../stringReader";
-import { CloseParenthesisToken, OpenParenthesisToken } from "../token";
+import { CloseParenthesisToken } from "../token";
 import { AccessorExpression } from "./Accessor";
 import { AssignmentExpression } from "./Assignment";
 import { Expression, ExpressionKind } from "./Expression";

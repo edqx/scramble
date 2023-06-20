@@ -34,7 +34,7 @@ console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => 
     if (key === "position" || key === "declaredAt" || key === "parent") return undefined;
     if (key === "flags") return [...val].map(flag => SymbolFlag[flag]);
     if (key === "type") return SymbolType[val];
-    if (key === "symbols") return Object.fromEntries([...val.entries()]);
+    if (key === "symbols" || key === "children") return Object.fromEntries([...val.entries()]);
     if (key === "kind") return ExpressionKind[val];
     return val;
 })), false, Infinity, true))

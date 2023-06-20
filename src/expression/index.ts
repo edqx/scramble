@@ -1,5 +1,6 @@
 export * from "./Accessor";
 export * from "./Assignment";
+export * from "./ClassDeclaration";
 export * from "./Expression";
 export * from "./FunctionCall";
 export * from "./IfStatement";
