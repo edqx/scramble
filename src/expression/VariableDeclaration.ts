@@ -63,6 +63,8 @@ export class VariableDeclarationExpression extends Expression {
         );
     }
 
+    varType: string;
+
     constructor(
         declarationKeyword: KeywordToken,
         assignmentExpression: AssignmentExpression,
@@ -71,5 +73,7 @@ export class VariableDeclarationExpression extends Expression {
         public readonly initialValue: Expression
     ) {
         super(ExpressionKind.VariableDeclaration, FilePositionRange.contain(declarationKeyword.position, assignmentExpression.position));
+
+        this.varType = declarationKeyword.keyword;
     }
 }
