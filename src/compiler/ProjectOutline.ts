@@ -9,7 +9,7 @@ export class ProcedureDefinitionOutline {
 }
 
 export class ProjectOutline {
-    definitions: Map<string, ProjectDefinitionOutline>;
+    definitions: Map<string, ProcedureDefinitionOutline>;
     variables: Map<string, VariableOutline>;
 
     constructor() {
