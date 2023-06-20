@@ -1,4 +1,7 @@
-let k = Person{
-   name = "Edward",
-   age = 18
-};
+proc print(a: string) {
+
+}
+
+proc one() {
+   print("yo yo yo");
+}

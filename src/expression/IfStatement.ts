@@ -6,6 +6,7 @@ import { FilePositionRange } from "../stringReader";
 import { KeywordToken, NewlineToken, OpenParenthesisToken, StatementBreakToken } from "../token";
 import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
+import { ParenthesisExpression } from "./Parenthesis";
 
 export class IfStatementExpression extends Expression {
     protected static attemptReadElse(
@@ -87,6 +88,7 @@ export class IfStatementExpression extends Expression {
         errorCollector: ErrorCollector
     ) {
         const blockAst = new AstCollector;
+        ParenthesisExpression.readExpectBlock(blockToken, astCollector, tokenReader, errorCollector);
         parseSingleTokenAst(blockToken, blockAst, tokenReader, errorCollector);
         this.attemptReadElse(ifKeyword, conditionAst, blockAst, astCollector, tokenReader, errorCollector);
     }

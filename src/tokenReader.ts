@@ -28,4 +28,8 @@ export class TokenReader {
     moveBack() {
         this.cursor--;
     }
+
+    peekLastToken(): Token|undefined {
+        return this.tokens[this.cursor - 1];
+    }
 }

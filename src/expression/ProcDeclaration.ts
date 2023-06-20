@@ -99,7 +99,11 @@ export class ProcDeclarationExpression extends Expression {
             );
             return;
         }
-        parseSingleTokenAst(blockToken, astCollector, tokenReader, errorCollector);
+        if (blockToken instanceof OpenParenthesisToken) {
+            ParenthesisExpression.readExpectBlock(blockToken, astCollector, tokenReader, errorCollector);
+        } else {
+            parseSingleTokenAst(blockToken, astCollector, tokenReader, errorCollector);
+        }
         const expr = astCollector.popLastExpression();
         if (expr instanceof ReturnStatementExpression || expr instanceof ParenthesisExpression) {
             if (expr instanceof ReturnStatementExpression && expr.expression === undefined) {

@@ -13,9 +13,28 @@ import { StructFieldsExpression } from "./StructFieldsExpression";
 import { AccessorExpression } from "./Accessor";
 
 export class ParenthesisExpression extends Expression {
-    static read(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
-        const parenthesisStack: OpenParenthesisToken[] = [ openParenthesisToken ];
+    static readExpectBlock(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         const innerTokens: Token[] = [];
+        const parenthesisExpression = this._readToInnerTokens(openParenthesisToken, innerTokens, tokenReader, errorCollector);
+        if (parenthesisExpression === null) return;
+        
+        const last = astCollector.peekLastExpression();
+        if (last instanceof KeywordExpression && openParenthesisToken.parenthesis === "(") {
+            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
+            astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
+            return;
+        }
+
+        astCollector.appendExpression(parenthesisExpression);
+    }
+
+    protected static _readToInnerTokens(
+        openParenthesisToken: OpenParenthesisToken,
+        innerTokens: Token[],
+        tokenReader: TokenReader,
+        errorCollector: ErrorCollector
+    ): ParenthesisExpression|null {
+        const parenthesisStack: OpenParenthesisToken[] = [ openParenthesisToken ];
         while (true) {
             const nextToken = tokenReader.getNextToken();
             if (nextToken === undefined) {
@@ -46,34 +65,47 @@ export class ParenthesisExpression extends Expression {
                 if (parenthesisStack.length === 0) {
                     const innerExpressions = parseAst(new TokenReader(innerTokens), errorCollector).expressions;
                     const parenthesisExpression = new ParenthesisExpression(openParenthesisToken, nextToken, innerExpressions);
-                    const last = astCollector.peekLastExpression();
-                    if (last instanceof KeywordExpression && openParenthesisToken.parenthesis === "(") {
-                        const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
-                        astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
-                        break;
-                    } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression) && openParenthesisToken.parenthesis === "{") {
-                        const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
-                        for (const expression of innerExpressions) {
-                            if (!(expression instanceof AssignmentExpression)) {
-                                errorCollector.addError(
-                                    new CompilerError(ErrorCode.ExpectedFieldAssignment)
-                                        .addError(expression.position, "Expected a field assignment")
-                                        .addInfo(identifierExpression.position, "You can only assign fields in a struct initialiser")
-                                )
-                                return;
-                            }
-                        }
-                        astCollector.appendExpression(new StructFieldsExpression(nextToken, identifierExpression, innerExpressions as AssignmentExpression[]));
-                        break;
-                    }
-
-                    astCollector.appendExpression(parenthesisExpression);
-                    break;
+                    return parenthesisExpression;
                 }
             }
 
             innerTokens.push(nextToken);
         }
+        return null;
+    }
+
+    static read(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+        const innerTokens: Token[] = [];
+        const parenthesisExpression = this._readToInnerTokens(openParenthesisToken, innerTokens, tokenReader, errorCollector);
+        if (parenthesisExpression === null) return;
+        
+        const last = astCollector.peekLastExpression();
+        if (last instanceof KeywordExpression && openParenthesisToken.parenthesis === "(") {
+            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
+            astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
+            return;
+        } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression) && openParenthesisToken.parenthesis === "{") {
+            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
+            for (const expression of parenthesisExpression.expressions) {
+                if (!(expression instanceof AssignmentExpression)) {
+                    errorCollector.addError(
+                        new CompilerError(ErrorCode.ExpectedFieldAssignment)
+                            .addError(expression.position, "Expected a field assignment")
+                            .addInfo(identifierExpression.position, "You can only assign fields in a struct initialiser")
+                    )
+                    return;
+                }
+            }
+            const closeParenthesisToken = tokenReader.peekLastToken()! as CloseParenthesisToken;
+            astCollector.appendExpression(new StructFieldsExpression(
+                closeParenthesisToken,
+                identifierExpression,
+                parenthesisExpression.expressions as AssignmentExpression[]
+            ));
+            return;
+        }
+
+        astCollector.appendExpression(parenthesisExpression);
     }
 
     constructor(openParenthesisToken: OpenParenthesisToken, closeParenthesisToken: CloseParenthesisToken, public readonly expressions: Expression[]) {
