@@ -28,7 +28,7 @@ export class OpenParenthesisToken extends Token {
         switch (this.parenthesis) {
         case "(": return null;
         case "[": return -1;
-        case "{": return -1;
+        case "{": return null;
         }
     }
 }

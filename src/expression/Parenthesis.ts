@@ -8,6 +8,9 @@ import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 import { FunctionCallExpression } from "./FunctionCall";
 import { KeywordExpression } from "./Keyword";
+import { AssignmentExpression } from "./Assignment";
+import { StructFieldsExpression } from "./StructFieldsExpression";
+import { AccessorExpression } from "./Accessor";
 
 export class ParenthesisExpression extends Expression {
     static read(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -44,9 +47,23 @@ export class ParenthesisExpression extends Expression {
                     const innerExpressions = parseAst(new TokenReader(innerTokens), errorCollector).expressions;
                     const parenthesisExpression = new ParenthesisExpression(openParenthesisToken, nextToken, innerExpressions);
                     const last = astCollector.peekLastExpression();
-                    if (last instanceof KeywordExpression) {
+                    if (last instanceof KeywordExpression && openParenthesisToken.parenthesis === "(") {
                         const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
                         astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
+                        break;
+                    } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression) && openParenthesisToken.parenthesis === "{") {
+                        const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
+                        for (const expression of innerExpressions) {
+                            if (!(expression instanceof AssignmentExpression)) {
+                                errorCollector.addError(
+                                    new CompilerError(ErrorCode.ExpectedFieldAssignment)
+                                        .addError(expression.position, "Expected a field assignment")
+                                        .addInfo(identifierExpression.position, "You can only assign fields in a struct initialiser")
+                                )
+                                return;
+                            }
+                        }
+                        astCollector.appendExpression(new StructFieldsExpression(nextToken, identifierExpression, innerExpressions as AssignmentExpression[]));
                         break;
                     }
 
