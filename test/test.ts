@@ -8,7 +8,7 @@ import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
 import { ProcedureSymbol, SymbolFlag, SymbolType } from "../src/compiler/definitions";
-import { SymbolDeclarationStore } from "../src/compiler";
+import { createProjectOutline, SymbolDeclarationStore } from "../src/compiler";
 import { staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler/analysis";
 
 const errorCollector = new ErrorCollector;
@@ -35,6 +35,8 @@ for (const expression of ast.expressions) {
     staticallyAnalyseExpressionDeclaration(scriptWrapper, expression, symbols, errorCollector);
 }
 staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, symbols, errorCollector);
+
+createProjectOutline(ast.expressions, scriptWrapper, symbols, errorCollector);
 console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => {
     if (key === "position" || key === "expression" || key === "parent") return undefined;
     if (key === "flags") return [...val].map(flag => SymbolFlag[flag]);

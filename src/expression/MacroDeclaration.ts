@@ -4,6 +4,7 @@ import { FilePositionRange } from "../stringReader";
 import { OperatorToken } from "../token";
 import { Expression, ExpressionKind } from "./Expression";
 import { FunctionCallExpression } from "./FunctionCall";
+import { KeywordExpression } from "./Keyword";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
 
 export class MacroDeclarationExpression extends Expression {
@@ -11,7 +12,7 @@ export class MacroDeclarationExpression extends Expression {
         astCollector.appendExpression(
             new MacroDeclarationExpression(
                 left,
-                left.identifier,
+                (left.reference as KeywordExpression).keyword,
                 ProcDeclarationExpression.parseParameters(left, left.args, errorCollector),
                 right
             )

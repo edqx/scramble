@@ -13,7 +13,7 @@ export * from "./Parenthesis";
 export * from "./ProcDeclaration";
 export * from "./ReturnStatement";
 export * from "./Script";
-export * from "./StructFieldsExpression";
+export * from "./StructFields";
 export * from "./String";
 export * from "./TypeGuard";
 export * from "./UnaryOperator";

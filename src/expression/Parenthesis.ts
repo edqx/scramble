@@ -9,7 +9,7 @@ import { Expression, ExpressionKind } from "./Expression";
 import { FunctionCallExpression } from "./FunctionCall";
 import { KeywordExpression } from "./Keyword";
 import { AssignmentExpression } from "./Assignment";
-import { StructFieldsExpression } from "./StructFieldsExpression";
+import { StructFieldsExpression } from "./StructFields";
 import { AccessorExpression } from "./Accessor";
 
 export class ParenthesisExpression extends Expression {
@@ -80,7 +80,7 @@ export class ParenthesisExpression extends Expression {
         if (parenthesisExpression === null) return;
         
         const last = astCollector.peekLastExpression();
-        if (last instanceof KeywordExpression && openParenthesisToken.parenthesis === "(") {
+        if ((last instanceof KeywordExpression || last instanceof AccessorExpression || last instanceof ParenthesisExpression) && openParenthesisToken.parenthesis === "(") {
             const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
             astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
             return;

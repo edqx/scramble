@@ -54,20 +54,7 @@ export function staticallyAnalyseExpression(
             staticallyAnalyseExpression(parentScope, scopeTraversal, method, symbols, errorCollector);
         }
     } else if (expression instanceof FunctionCallExpression) {
-        const reference = parentScope.getIdentifierReference(expression.identifier);
-        if (reference === undefined) throw new Error(`Could not find reference '${expression.identifier}'`);
-
-        if (!reference.flags.has(SymbolFlag.Hoisted) && !scopeTraversal.has(reference.expression))
-            throw new Error(`Reference not declared '${expression.identifier}'`);
-            
-        let parent: ProcedureSymbol|MacroSymbol|ClassSymbol|undefined = parentScope;
-        while (parent !== undefined) {
-            if (parentScope === reference) {
-                reference.flags.add(SymbolFlag.ProcUsedRecursively);
-                break;
-            }
-            parent = parent.parent;
-        }
+        staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbols, errorCollector);
     } else if (expression instanceof IfStatementExpression) {
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.condition, symbols, errorCollector);
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.block, symbols, errorCollector);
@@ -83,6 +70,14 @@ export function staticallyAnalyseExpression(
             
         if (reference instanceof ProcedureSymbol) {
             reference.flags.add(SymbolFlag.ProcUsedAsValue);
+        }
+        let parent: ProcedureSymbol|MacroSymbol|ClassSymbol|undefined = parentScope;
+        while (parent !== undefined) {
+            if (parentScope === reference) {
+                reference.flags.add(SymbolFlag.ProcUsedRecursively);
+                break;
+            }
+            parent = parent.parent;
         }
     } else if (expression instanceof MacroDeclarationExpression) {
         for (const param of expression.parameters) {

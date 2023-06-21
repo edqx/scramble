@@ -12,7 +12,7 @@ import { TypeGuardExpression } from "./TypeGuard";
 
 export class AssignmentExpression extends Expression {
     static fromOperator(left: Expression, right: Expression, operatorToken: OperatorToken, astCollector: AstCollector, errorCollector: ErrorCollector) {
-        if (left instanceof FunctionCallExpression) {
+        if (left instanceof FunctionCallExpression && left.reference instanceof KeywordExpression) {
             MacroDeclarationExpression.fromOperator(left, right, operatorToken, astCollector, errorCollector);
             return;
         }
