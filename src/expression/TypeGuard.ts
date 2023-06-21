@@ -41,7 +41,7 @@ export class TypeGuardExpression extends Expression {
         astCollector.appendExpression(new TypeGuardExpression(left, right));
     }
 
-    constructor(public readonly identifier: KeywordExpression, public readonly type: Expression) {
-        super(ExpressionKind.TypeGuard, FilePositionRange.contain(identifier.position, type.position));
+    constructor(public readonly reference: KeywordExpression, public readonly type: Expression) {
+        super(ExpressionKind.TypeGuard, FilePositionRange.contain(reference.position, type.position));
     }
 }

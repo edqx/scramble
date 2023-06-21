@@ -127,7 +127,7 @@ export class ProcDeclarationExpression extends Expression {
 
                 parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.reference, parameterExpression.type, parameterExpression.value));
             } else if (parameterExpression instanceof TypeGuardExpression) {
-                parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.identifier, parameterExpression.type, undefined));
+                parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.reference, parameterExpression.type, undefined));
             } else if (parameterExpression instanceof KeywordExpression) {
                 parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression, undefined, undefined));
             } else {

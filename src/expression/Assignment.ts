@@ -25,7 +25,7 @@ export class AssignmentExpression extends Expression {
             return null;
         }
         if (left instanceof TypeGuardExpression) {
-            astCollector.appendExpression(new AssignmentExpression(left.identifier, left.type, right));
+            astCollector.appendExpression(new AssignmentExpression(left.reference, left.type, right));
             return;
         }
         astCollector.appendExpression(new AssignmentExpression(left, undefined, right));

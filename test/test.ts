@@ -7,7 +7,9 @@ import { parseAst } from "../src/ast";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
-import { ProcedureSymbol, SymbolDeclarationStore, SymbolFlag, SymbolType, staticallyAnalyseBlock } from "../src/compiler";
+import { ProcedureSymbol, SymbolFlag, SymbolType } from "../src/compiler/definitions";
+import { SymbolDeclarationStore } from "../src/compiler";
+import { staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler/analysis";
 
 const errorCollector = new ErrorCollector;
 
@@ -29,9 +31,12 @@ const scriptExpression = new ScriptExpression(ast.expressions);
 const scriptWrapper = new ProcedureSymbol("", undefined, "#script", scriptExpression);
 const symbols = new SymbolDeclarationStore;
 const traversal: Set<Expression> = new Set;
+for (const expression of ast.expressions) {
+    staticallyAnalyseExpressionDeclaration(scriptWrapper, expression, symbols, errorCollector);
+}
 staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, symbols, errorCollector);
 console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => {
-    if (key === "position" || key === "declaredAt" || key === "parent") return undefined;
+    if (key === "position" || key === "expression" || key === "parent") return undefined;
     if (key === "flags") return [...val].map(flag => SymbolFlag[flag]);
     if (key === "type") return SymbolType[val];
     if (key === "symbols" || key === "children") return Object.fromEntries([...val.entries()]);

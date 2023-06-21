@@ -1,5 +1,5 @@
-import { Expression } from "../expression";
-import { ClassSymbol, CodeSymbol, FieldSymbol, MacroSymbol, ProcedureSymbol, VariableSymbol } from "./symbols";
+import { ClassDeclarationExpression, Expression, MacroDeclarationExpression, ParameterDeclarationExpression, ProcDeclarationExpression, TypeGuardExpression, VariableDeclarationExpression } from "../expression";
+import { ClassSymbol, CodeSymbol, FieldSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, VariableSymbol } from "./definitions";
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%()*+,-./:;=?@[]^_\\`{|}~";
 export class SymbolDeclarationStore {
@@ -22,17 +22,17 @@ export class SymbolDeclarationStore {
         return str;
     }
 
-    addVariable(expression: Expression, parent: ProcedureSymbol, name: string) {
+    addVariable(expression: VariableDeclarationExpression, parent: ProcedureSymbol) {
         const id = this.nextId();
-        const variable = new VariableSymbol(id, parent, name, expression);
+        const variable = new VariableSymbol(id, parent, expression.identifier, expression);
         parent.addSymbol(variable);
         this.expressionToSymbol.set(expression, variable);
         return variable;
     }
 
-    addProcedure(expression: Expression, parent: ProcedureSymbol|ClassSymbol, name: string) {
+    addProcedure(expression: ProcDeclarationExpression, parent: ProcedureSymbol|ClassSymbol) {
         const id = this.nextId();
-        const proc = new ProcedureSymbol(id, parent, name, expression);
+        const proc = new ProcedureSymbol(id, parent, expression.identifier, expression);
         if (parent instanceof ClassSymbol) {
             parent.addChild(proc);
         } else {
@@ -42,25 +42,33 @@ export class SymbolDeclarationStore {
         return proc;
     }
 
-    addField(expression: Expression, parent: ClassSymbol, name: string) {
+    addParameter(expression: ParameterDeclarationExpression, parent: ProcedureSymbol|MacroSymbol) {
         const id = this.nextId();
-        const field = new FieldSymbol(id, parent, name, expression);
+        const variable = new ParameterSymbol(id, parent, expression.identifier, expression);
+        parent.addSymbol(variable);
+        this.expressionToSymbol.set(expression, variable);
+        return variable;
+    }
+
+    addField(expression: TypeGuardExpression, parent: ClassSymbol) {
+        const id = this.nextId();
+        const field = new FieldSymbol(id, parent, expression.reference.keyword, expression);
         parent.addChild(field);
         this.expressionToSymbol.set(expression, field);
         return field;
     }
 
-    addClass(expression: Expression, parent: ProcedureSymbol, name: string) {
+    addClass(expression: ClassDeclarationExpression, parent: ProcedureSymbol) {
         const id = this.nextId();
-        const klass = new ClassSymbol(id, parent, name, expression);
+        const klass = new ClassSymbol(id, parent, expression.identifier, expression);
         parent.addSymbol(klass);
         this.expressionToSymbol.set(expression, klass);
         return klass;
     }
 
-    addMacro(expression: Expression, parent: ProcedureSymbol, name: string) {
+    addMacro(expression: MacroDeclarationExpression, parent: ProcedureSymbol) {
         const id = this.nextId();
-        const macro = new MacroSymbol(id, parent, name, expression);
+        const macro = new MacroSymbol(id, parent, expression.identifier, expression);
         parent.addSymbol(macro);
         this.expressionToSymbol.set(expression, macro);
         return macro;
