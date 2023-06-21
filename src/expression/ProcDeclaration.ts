@@ -35,7 +35,7 @@ export class ProcDeclarationExpression extends Expression {
         identifierToken: KeywordToken,
         parametersList: ParenthesisExpression,
         blockToken: Token,
-        returnType: Expression|undefined,
+        returnType: string|undefined,
         tokenReader: TokenReader,
         astCollector: AstCollector,
         errorCollector: ErrorCollector
@@ -77,7 +77,7 @@ export class ProcDeclarationExpression extends Expression {
         procKeywordToken: KeywordToken,
         identifierToken: KeywordToken,
         parametersList: ParenthesisExpression,
-        typeIndiciatorToken: Token,
+        typeIndicatorToken: Token,
         tokenReader: TokenReader,
         astCollector: AstCollector,
         errorCollector: ErrorCollector
@@ -90,21 +90,23 @@ export class ProcDeclarationExpression extends Expression {
                 const primeExpression = typeAst.getPrimeExpression()!;
                 errorCollector.addError(
                     new CompilerError(ErrorCode.MissingRightHandExpression)
-                        .addError(typeIndiciatorToken.position.end.offset(1), "Expected type")
+                        .addError(typeIndicatorToken.position.end.offset(1), "Expected type")
                         .addInfo(procKeywordToken.position, "'proc' statement expects a type after the type indicator")
                 );
                 break;
             }
 
-            if (nextToken instanceof KeywordToken && nextToken.keyword === "return") {
+            if ((nextToken instanceof KeywordToken && nextToken.keyword === "return") || (nextToken instanceof OpenParenthesisToken && nextToken.parenthesis === "{")) {
                 const primeExpression = typeAst.getPrimeExpression()!;
-                this.readBlock(procKeywordToken, identifierToken, parametersList, nextToken, primeExpression,  tokenReader, astCollector, errorCollector);
-                break;
-            }
-
-            if (nextToken instanceof OpenParenthesisToken && nextToken.parenthesis === "{") {
-                const primeExpression = typeAst.getPrimeExpression()!;
-                this.readBlock(procKeywordToken, identifierToken, parametersList, nextToken, primeExpression, tokenReader, astCollector, errorCollector);
+                if (!(primeExpression instanceof KeywordExpression)) {
+                    errorCollector.addError(
+                        new CompilerError(ErrorCode.ExpectedIdentifier)
+                            .addError(primeExpression.position, "Invalid type")
+                            .addInfo(typeIndicatorToken.position, "Types can only be simple references to classes or primitives")
+                    );
+                    return;
+                }
+                this.readBlock(procKeywordToken, identifierToken, parametersList, nextToken, primeExpression.keyword,  tokenReader, astCollector, errorCollector);
                 break;
             }
 
@@ -195,7 +197,7 @@ export class ProcDeclarationExpression extends Expression {
         identifier: KeywordToken,
         public readonly parameters: ParameterDeclarationExpression[],
         public readonly block: Expression,
-        public readonly returnType: Expression|undefined
+        public readonly returnType: string|undefined
     ) {
         super(ExpressionKind.ProcDeclaration, FilePositionRange.contain(procKeyword.position, block.position));
         this.identifier = identifier.keyword;

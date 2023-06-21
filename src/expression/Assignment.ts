@@ -32,7 +32,7 @@ export class AssignmentExpression extends Expression {
         return;
     }
 
-    constructor(public readonly reference: KeywordExpression|AccessorExpression, public readonly type: Expression|undefined, public readonly value: Expression) {
+    constructor(public readonly reference: KeywordExpression|AccessorExpression, public readonly type: string|undefined, public readonly value: Expression) {
         super(ExpressionKind.Assignment, FilePositionRange.contain(reference.position, value.position));
     }
 }

@@ -38,10 +38,18 @@ export class TypeGuardExpression extends Expression {
             );
             return;
         }
-        astCollector.appendExpression(new TypeGuardExpression(left, right));
+        if (!(right instanceof KeywordExpression)) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.ExpectedIdentifier)
+                    .addError(left.position, "Invalid type")
+                    .addInfo(typeIndicatorToken.position, "Types can only be simple references to classes or primitives")
+            );
+            return;
+        }
+        astCollector.appendExpression(new TypeGuardExpression(right, left, right.keyword));
     }
 
-    constructor(public readonly reference: KeywordExpression, public readonly type: Expression) {
-        super(ExpressionKind.TypeGuard, FilePositionRange.contain(reference.position, type.position));
+    constructor(typeExpression: KeywordExpression, public readonly reference: KeywordExpression, public readonly type: string) {
+        super(ExpressionKind.TypeGuard, FilePositionRange.contain(reference.position, typeExpression.position));
     }
 }

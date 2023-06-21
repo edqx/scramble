@@ -69,7 +69,7 @@ export class VariableDeclarationExpression extends Expression {
         declarationKeyword: KeywordToken,
         assignmentExpression: AssignmentExpression,
         public readonly identifier: string,
-        public readonly typeGuard: Expression|undefined,
+        public readonly typeGuard: string|undefined,
         public readonly initialValue: Expression
     ) {
         super(ExpressionKind.VariableDeclaration, FilePositionRange.contain(declarationKeyword.position, assignmentExpression.position));

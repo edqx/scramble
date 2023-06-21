@@ -36,6 +36,16 @@ export abstract class CodeSymbol<ExpressionType extends Expression = Expression>
         this.signature = undefined;
     }
 
+    getNearestScopeParent() {
+        let parent = this.parent;
+        while (parent !== undefined) {
+            if (parent instanceof ScopedSymbol) return parent;
+            parent = parent.parent;
+        }
+
+        return undefined;
+    }
+
     setSignature(signature: ClassSymbol|ProcedureSymbol) {
         this.signature = signature;
     }
