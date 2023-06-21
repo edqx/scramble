@@ -19,6 +19,7 @@ export enum SymbolFlag {
 
 export abstract class CodeSymbol {
     flags: Set<SymbolFlag>;
+    signature: ClassSymbol|ProcedureSymbol|undefined;
 
     constructor(
         public readonly id: string,
@@ -28,6 +29,11 @@ export abstract class CodeSymbol {
         public readonly declaredAt: Expression
     ) {
         this.flags = new Set;
+        this.signature = undefined;
+    }
+
+    setSignature(signature: ClassSymbol|ProcedureSymbol) {
+        this.signature = signature;
     }
 }
 
@@ -92,7 +98,25 @@ export class ClassSymbol extends CodeSymbol {
 }
 
 export class MacroSymbol extends CodeSymbol {
+    symbols: Map<string, CodeSymbol>;
+
     constructor(id: string, parent: ProcedureSymbol|undefined, name: string, declaredAt: Expression) {
         super(id, parent, SymbolType.Macro, name, declaredAt);
+
+        this.symbols = new Map;
+    }
+
+    isSymbolNameTaken(name: string) {
+        return this.symbols.has(name);
+    }
+
+    getIdentifierReference(name: string): CodeSymbol|undefined {
+        const symbol = this.symbols.get(name);
+        if (symbol === undefined) return this.parent?.getIdentifierReference(name) || undefined;
+        return symbol;
+    }
+
+    addSymbol(symbol: CodeSymbol) {
+        this.symbols.set(symbol.name, symbol);
     }
 }

@@ -21,7 +21,7 @@ export function parseSingleTokenAst(token: Token, astCollector: AstCollector, to
             case "while": WhileStatementExpression.read(token, astCollector, tokenReader, errorCollector); break;
             case "proc": ProcDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
             case "return": ReturnStatementExpression.read(token, astCollector, tokenReader, errorCollector); break;
-            case "let": case "static": VariableDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
+            case "let": case "var": VariableDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
             case "class": ClassDeclarationExpression.read(token, astCollector, tokenReader, errorCollector); break;
             default: KeywordExpression.read(token, astCollector, tokenReader, errorCollector);
         }

@@ -63,7 +63,7 @@ export class VariableDeclarationExpression extends Expression {
         );
     }
 
-    varType: "let"|"static";
+    varType: "let"|"var";
 
     constructor(
         declarationKeyword: KeywordToken,
@@ -74,6 +74,6 @@ export class VariableDeclarationExpression extends Expression {
     ) {
         super(ExpressionKind.VariableDeclaration, FilePositionRange.contain(declarationKeyword.position, assignmentExpression.position));
 
-        this.varType = declarationKeyword.keyword as "let"|"static";
+        this.varType = declarationKeyword.keyword as "let"|"var";
     }
 }

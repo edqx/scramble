@@ -13,6 +13,7 @@ import { ParameterDeclarationExpression } from "./ParameterDeclaration";
 import { ParenthesisExpression } from "./Parenthesis";
 import { ReturnStatementExpression } from "./ReturnStatement";
 import { TypeGuardExpression } from "./TypeGuard";
+import { TypeIndicatorToken } from "../token/TypeIndicator";
 
 export class ProcDeclarationExpression extends Expression {
     protected static readReturnStatement(tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -26,6 +27,88 @@ export class ProcDeclarationExpression extends Expression {
                 return blockAst;
             
             parseSingleTokenAst(nextToken, blockAst, tokenReader, errorCollector);
+        }
+    }
+
+    protected static readBlock(
+        procKeywordToken: KeywordToken,
+        identifierToken: KeywordToken,
+        parametersList: ParenthesisExpression,
+        blockToken: Token,
+        returnType: Expression|undefined,
+        tokenReader: TokenReader,
+        astCollector: AstCollector,
+        errorCollector: ErrorCollector
+    ) {
+        if (blockToken instanceof OpenParenthesisToken) {
+            ParenthesisExpression.readExpectBlock(blockToken, astCollector, tokenReader, errorCollector);
+        } else {
+            parseSingleTokenAst(blockToken, astCollector, tokenReader, errorCollector);
+        }
+        const expr = astCollector.popLastExpression();
+        if (expr instanceof ReturnStatementExpression || expr instanceof ParenthesisExpression) {
+            if (expr instanceof ReturnStatementExpression && expr.expression === undefined) {
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.MissingCodeBlock)
+                        .addError(expr.position.end.offset(1), "Expected return value")
+                        .addInfo(expr.position, "When using the short-form 'return' statement, you need to return a value")
+                );
+                return;
+            }
+            astCollector.appendExpression(
+                new ProcDeclarationExpression(
+                    procKeywordToken,
+                    identifierToken,
+                    this.parseParameters(procKeywordToken, parametersList.expressions, errorCollector),
+                    expr,
+                    returnType
+                )
+            );
+        } else {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.MissingCodeBlock)
+                    .addError(expr?.position || parametersList.position.end.offset(1), "Expected code block or 'return' statement")
+                    .addInfo(parametersList.position, "After defining a procedure's parameters, you need to define the procedure body")
+            );
+        }
+    }
+
+    protected static readTypeBeforeBlock(
+        procKeywordToken: KeywordToken,
+        identifierToken: KeywordToken,
+        parametersList: ParenthesisExpression,
+        typeIndiciatorToken: Token,
+        tokenReader: TokenReader,
+        astCollector: AstCollector,
+        errorCollector: ErrorCollector
+    ) {
+        const typeAst = new AstCollector;
+        while (true) {
+            const nextToken = tokenReader.getNextToken();
+
+            if (nextToken === undefined) {
+                const primeExpression = typeAst.getPrimeExpression()!;
+                errorCollector.addError(
+                    new CompilerError(ErrorCode.MissingRightHandExpression)
+                        .addError(typeIndiciatorToken.position.end.offset(1), "Expected type")
+                        .addInfo(procKeywordToken.position, "'proc' statement expects a type after the type indicator")
+                );
+                break;
+            }
+
+            if (nextToken instanceof KeywordToken && nextToken.keyword === "return") {
+                const primeExpression = typeAst.getPrimeExpression()!;
+                this.readBlock(procKeywordToken, identifierToken, parametersList, nextToken, primeExpression,  tokenReader, astCollector, errorCollector);
+                break;
+            }
+
+            if (nextToken instanceof OpenParenthesisToken && nextToken.parenthesis === "{") {
+                const primeExpression = typeAst.getPrimeExpression()!;
+                this.readBlock(procKeywordToken, identifierToken, parametersList, nextToken, primeExpression, tokenReader, astCollector, errorCollector);
+                break;
+            }
+
+            parseSingleTokenAst(nextToken, typeAst, tokenReader, errorCollector);
         }
     }
 
@@ -99,35 +182,10 @@ export class ProcDeclarationExpression extends Expression {
             );
             return;
         }
-        if (blockToken instanceof OpenParenthesisToken) {
-            ParenthesisExpression.readExpectBlock(blockToken, astCollector, tokenReader, errorCollector);
+        if (blockToken instanceof TypeIndicatorToken) {
+            this.readTypeBeforeBlock(procKeywordToken, identifierToken, parametersList, blockToken, tokenReader, astCollector, errorCollector)
         } else {
-            parseSingleTokenAst(blockToken, astCollector, tokenReader, errorCollector);
-        }
-        const expr = astCollector.popLastExpression();
-        if (expr instanceof ReturnStatementExpression || expr instanceof ParenthesisExpression) {
-            if (expr instanceof ReturnStatementExpression && expr.expression === undefined) {
-                errorCollector.addError(
-                    new CompilerError(ErrorCode.MissingCodeBlock)
-                        .addError(expr.position.end.offset(1), "Expected return value")
-                        .addInfo(expr.position, "When using the short-form 'return' statement, you need to return a value")
-                );
-                return;
-            }
-            astCollector.appendExpression(
-                new ProcDeclarationExpression(
-                    procKeywordToken,
-                    identifierToken,
-                    this.parseParameters(procKeywordToken, parametersList.expressions, errorCollector),
-                    expr
-                )
-            );
-        } else {
-            errorCollector.addError(
-                new CompilerError(ErrorCode.MissingCodeBlock)
-                    .addError(expr?.position || parametersList.position.end.offset(1), "Expected code block or 'return' statement")
-                    .addInfo(parametersList.position, "After defining a procedure's parameters, you need to define the procedure body")
-            );
+            this.readBlock(procKeywordToken, identifierToken, parametersList, blockToken, undefined, tokenReader, astCollector, errorCollector);
         }
     }
 
@@ -136,7 +194,8 @@ export class ProcDeclarationExpression extends Expression {
         procKeyword: KeywordToken,
         identifier: KeywordToken,
         public readonly parameters: ParameterDeclarationExpression[],
-        public readonly block: Expression
+        public readonly block: Expression,
+        public readonly returnType: Expression|undefined
     ) {
         super(ExpressionKind.ProcDeclaration, FilePositionRange.contain(procKeyword.position, block.position));
         this.identifier = identifier.keyword;

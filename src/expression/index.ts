@@ -5,6 +5,7 @@ export * from "./Expression";
 export * from "./FunctionCall";
 export * from "./IfStatement";
 export * from "./Keyword";
+export * from "./MacroDeclaration";
 export * from "./Number";
 export * from "./Operator";
 export * from "./ParameterDeclaration";

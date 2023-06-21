@@ -1,8 +1,8 @@
 import { CompilerError, ErrorCode } from "../error";
 import { ErrorCollector } from "../errorCollector";
-import { Expression, FunctionCallExpression, KeywordExpression, ProcDeclarationExpression, VariableDeclarationExpression, ParenthesisExpression, OperatorExpression, AccessorExpression, AssignmentExpression, ParameterDeclarationExpression, ReturnStatementExpression, TypeGuardExpression, UnaryOperatorExpression, IfStatementExpression, WhileStatementExpression, ClassDeclarationExpression } from "../expression";
+import { Expression, FunctionCallExpression, KeywordExpression, ProcDeclarationExpression, VariableDeclarationExpression, ParenthesisExpression, OperatorExpression, AccessorExpression, AssignmentExpression, ParameterDeclarationExpression, ReturnStatementExpression, TypeGuardExpression, UnaryOperatorExpression, IfStatementExpression, WhileStatementExpression, ClassDeclarationExpression, MacroDeclarationExpression } from "../expression";
 import { SymbolDeclarationStore } from "./symbolDeclarationStore";
-import { ClassSymbol, FieldSymbol, ProcedureSymbol, SymbolFlag, VariableSymbol } from "./symbols";
+import { ClassSymbol, FieldSymbol, MacroSymbol, ProcedureSymbol, SymbolFlag, VariableSymbol } from "./symbols";
 
 function readProcDeclaration(
     scope: ProcedureSymbol,
@@ -36,6 +36,23 @@ function readMethodProcDeclaration(
     }
     scopeTraversal.add(procDeclarationExpression);
     staticallyAnalyseExpression(procDeclarationSymbol, scopeTraversal, procDeclarationExpression.block, symbols, errorCollector);
+}
+
+function readMacroDeclaration(
+    scope: ProcedureSymbol,
+    scopeTraversal: Set<Expression>,
+    macroDeclarationExpression: MacroDeclarationExpression,
+    symbols: SymbolDeclarationStore,
+    errorCollector: ErrorCollector
+) {
+    const macroDeclarationSymbol = scope.symbols.get(macroDeclarationExpression.identifier);
+    if (macroDeclarationSymbol === undefined || !(macroDeclarationSymbol instanceof MacroSymbol)) throw new Error("??");
+
+    for (const parameter of macroDeclarationExpression.parameters) {
+        staticallyAnalyseExpression(macroDeclarationSymbol, scopeTraversal, parameter, symbols, errorCollector);
+    }
+    scopeTraversal.add(macroDeclarationExpression);
+    staticallyAnalyseExpression(macroDeclarationSymbol, scopeTraversal, macroDeclarationExpression.block, symbols, errorCollector);
 }
 
 function readVariableDeclaration(
@@ -112,7 +129,7 @@ function readClassDeclaration(
     }
 }
 
-function readDeclarationExpression(scope: ProcedureSymbol, expression: Expression, symbols: SymbolDeclarationStore, errorCollector: ErrorCollector) {
+function readDeclarationExpression(scope: ProcedureSymbol|MacroSymbol, expression: Expression, symbols: SymbolDeclarationStore, errorCollector: ErrorCollector) {
     if (expression instanceof ProcDeclarationExpression) {
         const existingRef = scope.symbols.get(expression.identifier);
         if (existingRef) {
@@ -146,12 +163,23 @@ function readDeclarationExpression(scope: ProcedureSymbol, expression: Expressio
             return;
         }
         symbols.addClass(expression, scope, expression.identifier);
+    } else if (expression instanceof MacroDeclarationExpression) {
+        const existingRef = scope.symbols.get(expression.identifier);
+        if (existingRef) {
+            errorCollector.addError(
+                new CompilerError(ErrorCode.IdentifierInUse)
+                    .addError(expression.position, "Identifier in use")
+                    .addInfo(existingRef.declaredAt.position, `'${existingRef.name}' has already been declared in this scope`)
+            );
+            return;
+        }
+        symbols.addMacro(expression, scope, expression.identifier);
     }
 }
 
 // todo: function hoisting
 export function staticallyAnalyseExpression(
-    scope: ProcedureSymbol,
+    scope: ProcedureSymbol|MacroSymbol,
     scopeTraversal: Set<Expression>,
     expression: Expression,
     symbols: SymbolDeclarationStore,
@@ -159,6 +187,8 @@ export function staticallyAnalyseExpression(
 ) {
     if (expression instanceof ProcDeclarationExpression) {
         readProcDeclaration(scope, scopeTraversal, expression, symbols, errorCollector);
+    } else if (expression instanceof MacroDeclarationExpression) {
+        readMacroDeclaration(scope, scopeTraversal, expression, symbols, errorCollector);
     } else {
         if (expression instanceof KeywordExpression) {
             const symbol = scope.getIdentifierReference(expression.keyword);
@@ -256,7 +286,7 @@ export function staticallyAnalyseExpression(
 }
 
 export function staticallyAnalyseBlock(
-    scope: ProcedureSymbol,
+    scope: ProcedureSymbol|MacroSymbol,
     scopeTraversal: Set<Expression>,
     expressions: Expression[],
     symbols: SymbolDeclarationStore,
