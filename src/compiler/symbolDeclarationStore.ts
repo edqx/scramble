@@ -32,7 +32,7 @@ export class SymbolDeclarationStore {
 
     addProcedure(expression: ProcDeclarationExpression, parent: ProcedureSymbol|ClassSymbol) {
         const id = this.nextId();
-        const proc = new ProcedureSymbol(id, parent, expression.identifier, expression);
+        const proc = new ProcedureSymbol(id, parent, expression.identifier!, expression);
         if (parent instanceof ClassSymbol) {
             parent.addChild(proc);
         } else {

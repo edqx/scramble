@@ -25,7 +25,7 @@ export class ClassDeclarationExpression extends Expression {
         const blockToken = tokenReader.getNextToken();
         if (blockToken === undefined) {
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingCodeBlock)
+                new CompilerError(ErrorCode.ExpectedCodeBlock)
                     .addError(identifierToken.position.end.offset(1), "Expected class block")
                     .addInfo(classKeywordToken.position, "A class needs a block to define properties and methods")
             );
@@ -33,7 +33,7 @@ export class ClassDeclarationExpression extends Expression {
         }
         if (!(blockToken instanceof OpenParenthesisToken) || blockToken.parenthesis !== "{") {
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingCodeBlock)
+                new CompilerError(ErrorCode.ExpectedCodeBlock)
                     .addError(blockToken.position, "Expected class block")
                     .addInfo(classKeywordToken.position, "A class needs a block to define properties and methods")
             );
@@ -44,7 +44,7 @@ export class ClassDeclarationExpression extends Expression {
         const expr = astCollector.popLastExpression();
         if (expr === undefined || !(expr instanceof ParenthesisExpression)) {
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingCodeBlock)
+                new CompilerError(ErrorCode.ExpectedCodeBlock)
                     .addError(expr?.position || blockToken.position, "Expected class block")
                     .addInfo(classKeywordToken.position, "A class needs a block to define properties and methods")
             );

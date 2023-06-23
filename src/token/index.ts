@@ -5,6 +5,7 @@ export * from "./Newline";
 export * from "./Number";
 export * from "./OpenParenthesis";
 export * from "./Operator";
+export * from "./ReturnTypeIndicator";
 export * from "./Separator";
 export * from "./StatementBreak";
 export * from "./String";

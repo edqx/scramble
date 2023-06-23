@@ -1,20 +1,21 @@
 export enum ErrorCode {
-    MissingFractionalPart,
+    ExpectedFractionalPart,
     InvalidLeftHandSideReference,
     InvalidParameterDeclaration,
     MismatchedParenthesis,
-    MissingCondition,
-    MissingCodeBlock,
+    ExpectedCondition,
+    ExpectedCodeBlock,
     ExpectedIdentifier,
+    ExpectedParameters,
     UnexpectedTermination,
-    MissingRightHandExpression,
+    ExpectedRightHandExpression,
     ExpectedVariableDeclaration,
     IdentifierNotFound,
     VariableNotDeclared,
     IdentifierInUse,
     ExpectedFieldAssignment,
     ExpectedFieldOrMethod,
-
     BadTypeAssignment,
-    BadFunctioncall
+    BadFunctioncall,
+    ExpectedReturnType
 }

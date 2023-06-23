@@ -24,11 +24,11 @@ export class ClassInstanceType extends TypeSignature {
     }
 }
 
-export class FunctionSignatureType extends TypeSignature {
-    constructor(public readonly typeReference: Expression, public readonly args: TypeSignature[], public readonly returnType: TypeSignature) { super(); }
+export class FunctionType extends TypeSignature {
+    constructor(public readonly typeReference: Expression, public readonly params: TypeSignature[], public readonly returnType: TypeSignature) { super(); }
 
     getName(): string {
-        return "proc(" + this.args.map(arg => arg.getName()).join(", ") + "): " + this.returnType.getName();
+        return "proc(" + this.params.map(arg => arg.getName()).join(", ") + "): " + this.returnType.getName();
     }
 }
 
@@ -45,13 +45,35 @@ const PRIMITIVE_TYPES: Map<string, PrimitiveType> = new Map([
 
 const VOID_TYPE = new VoidType;
 
-export function resolveTypeName(scope: ScopedSymbol|ClassSymbol, name: string, existingTypes: Map<CodeSymbol, TypeSignature>, compilerErrors: ErrorCollector) {
-    const primitiveType = PRIMITIVE_TYPES.get(name);
+export function resolveTypeName(
+    scope: ScopedSymbol|ClassSymbol,
+    type: ProcDeclarationExpression|KeywordExpression,
+    existingTypes: Map<CodeSymbol, TypeSignature>,
+    compilerErrors: ErrorCollector
+): TypeSignature {
+    if (type instanceof ProcDeclarationExpression) {
+        if (!type.isTypeDeclaration())
+            return VOID_TYPE;
+
+        const argTypes = type.parameters.map(param => {
+            if (param.type !== undefined) {
+                return resolveTypeName(scope, param.type, existingTypes, compilerErrors);
+            }
+
+            throw new Error("Param requires a type");
+        });
+
+        return new FunctionType(type, argTypes, resolveTypeName(scope, type.returnType, existingTypes, compilerErrors));
+    }
+
+    const primitiveType = PRIMITIVE_TYPES.get(type.keyword);
     if (primitiveType !== undefined)
         return primitiveType;
 
-    const typeSymbol = scope.getIdentifierReference(name);
-    if (typeSymbol === undefined || !(typeSymbol instanceof ClassSymbol)) throw new Error(`Invalid type reference '${name}'`);
+    if (type.keyword === "void") return VOID_TYPE;
+
+    const typeSymbol = scope.getIdentifierReference(type.keyword);
+    if (typeSymbol === undefined || !(typeSymbol instanceof ClassSymbol)) throw new Error(`Invalid type reference '${type}'`);
 
     return getOrCreateExistingType(typeSymbol, new ClassInstanceType(typeSymbol), existingTypes);
 }
@@ -97,8 +119,8 @@ export function resolveSymbolType(symbol: CodeSymbol, existingTypes: Map<CodeSym
     } else if (symbol instanceof MacroSymbol) {
         throw new Error("Macro cannot be used as value.");
     } else if (symbol instanceof ParameterSymbol) {
-        if (symbol.expression.typeGuard !== undefined) {
-            return resolveTypeName(symbol.parent as ScopedSymbol, symbol.expression.typeGuard, existingTypes, compilerErrors);
+        if (symbol.expression.type !== undefined) {
+            return resolveTypeName(symbol.parent as ScopedSymbol, symbol.expression.type, existingTypes, compilerErrors);
         }
 
         if (symbol.expression.defaultValue !== undefined) {
@@ -108,9 +130,13 @@ export function resolveSymbolType(symbol: CodeSymbol, existingTypes: Map<CodeSym
         throw new Error("Failed to resolve parameter type");
     } else if (symbol instanceof ProcedureSymbol) {
         const proc = symbol.expression as ProcDeclarationExpression;
+
+        if (!proc.isCodeDefinition())
+            return VOID_TYPE;
+
         const argTypes = proc.parameters.map(param => {
-            if (param.typeGuard !== undefined) {
-                return resolveTypeName(symbol.parent!, param.typeGuard, existingTypes, compilerErrors);
+            if (param.type !== undefined) {
+                return resolveTypeName(symbol.parent!, param.type, existingTypes, compilerErrors);
             }
 
             if (param.defaultValue !== undefined) {
@@ -121,23 +147,45 @@ export function resolveSymbolType(symbol: CodeSymbol, existingTypes: Map<CodeSym
         });
 
         if (proc.returnType !== undefined) {
-            return new FunctionSignatureType(symbol.expression, argTypes, resolveTypeName(symbol.parent!, proc.returnType, existingTypes, compilerErrors));
+            return new FunctionType(symbol.expression, argTypes, resolveTypeName(symbol.parent!, proc.returnType, existingTypes, compilerErrors));
         }
 
         const possibleInferredReturnTypes = resolveBlockReturnTypes(proc.block, symbol, existingTypes, compilerErrors);
         if (possibleInferredReturnTypes.length > 1)
             throw new Error("Function cannot have multiple return types");
 
-        return new FunctionSignatureType(symbol.expression, argTypes, possibleInferredReturnTypes[0]);
+        return new FunctionType(symbol.expression, argTypes, possibleInferredReturnTypes[0]);
     } else if (symbol instanceof VariableSymbol) {
-        if (symbol.expression.typeGuard !== undefined) {
-            return resolveTypeName(symbol.parent as ScopedSymbol, symbol.expression.typeGuard, existingTypes, compilerErrors);
+        if (symbol.expression.type !== undefined) {
+            return resolveTypeName(symbol.parent as ScopedSymbol, symbol.expression.type, existingTypes, compilerErrors);
         }
 
         return inferTypeFromExpression(symbol.expression.initialValue, symbol.parent as ScopedSymbol /* not a class if it's a variable */, existingTypes, compilerErrors);
     }
 
     return VOID_TYPE;
+}
+
+export function compareTypeSignatures(a: TypeSignature, b: TypeSignature) {
+    if (a instanceof PrimitiveType) {
+        return a === b;
+    } else if (a instanceof ClassInstanceType) {
+        return a === b;
+    } else if (a instanceof FunctionType) {
+        if (!(b instanceof FunctionType)) return false;
+
+        if (!compareTypeSignatures(a.returnType, b.returnType)) return false;
+
+        if (a.params.length !== b.params.length) return false;
+
+        for (let i = 0; i < a.params.length; i++) {
+            if (!compareTypeSignatures(a.params[i], b.params[i])) return false;
+        }
+        return true;
+    } else if (a instanceof VoidType) {
+        return a === b;
+    }
+    return false;
 }
 
 export function getOrCreateExistingType(symbol: CodeSymbol, type: TypeSignature, existingTypes: Map<CodeSymbol, TypeSignature>) {
@@ -174,8 +222,8 @@ export function inferTypeFromExpression(expression: Expression, currentScope: Sc
             if (refSymbol instanceof MacroSymbol) {
                 const proc = refSymbol.expression as MacroDeclarationExpression;
                 const argTypes = proc.parameters.map(param => {
-                    if (param.typeGuard !== undefined) {
-                        return resolveTypeName(refSymbol.parent!, param.typeGuard, existingTypes, compilerErrors);
+                    if (param.type !== undefined) {
+                        return resolveTypeName(refSymbol.parent!, param.type, existingTypes, compilerErrors);
                     }
 
                     if (param.defaultValue !== undefined) {
@@ -190,26 +238,26 @@ export function inferTypeFromExpression(expression: Expression, currentScope: Sc
         }
 
         const procSignature = inferTypeFromExpression(expression.reference, currentScope, existingTypes, compilerErrors);
-        if (!(procSignature instanceof FunctionSignatureType))
+        if (!(procSignature instanceof FunctionType))
             throw new Error("Bad function call");
 
-        if (expression.args.length !== procSignature.args.length) {
+        if (expression.args.length !== procSignature.params.length) {
             compilerErrors.addError(
                 new CompilerError(ErrorCode.BadFunctioncall)
                     .addError(expression.position, "Bad function call")
-                    .addInfo(procSignature.typeReference.position, `Function signature '${procSignature.getName()}' expects ${procSignature.args.length} \
-argument${procSignature.args.length === 1 ? "" : "s"} whereas only ${expression.args.length} ${expression.args.length === 1 ? "is" : "are"} provided`)
+                    .addInfo(procSignature.typeReference.position, `Function signature '${procSignature.getName()}' expects ${procSignature.params.length} \
+argument${procSignature.params.length === 1 ? "" : "s"} whereas only ${expression.args.length} ${expression.args.length === 1 ? "is" : "are"} provided`)
             );
             return procSignature.returnType;
         }
 
         for (let i = 0; i < expression.args.length; i++) {
             const inferredArgumentType = inferTypeFromExpression(expression.args[i], currentScope, existingTypes, compilerErrors);
-            if (inferredArgumentType !== procSignature.args[i]) {
+            if (!compareTypeSignatures(inferredArgumentType, procSignature.params[i])) {
                 compilerErrors.addError(
                     new CompilerError(ErrorCode.BadFunctioncall)
                         .addError(expression.position, "Bad function call")
-                        .addInfo(procSignature.typeReference.position, `Type of '${inferredArgumentType.getName()}' is not assignable to type '${procSignature.args[i].getName()}' \
+                        .addInfo(procSignature.typeReference.position, `Type of '${inferredArgumentType.getName()}' is not assignable to type '${procSignature.params[i].getName()}' \
 in argument ${i + 1} for function signature '${procSignature.getName()}'`)
                 );
             }
@@ -254,8 +302,8 @@ export function createProjectOutline(block: Expression[], scope: ScopedSymbol, s
     for (const expression of block) {
         if (expression instanceof VariableDeclarationExpression) {
             const varType = inferTypeFromExpression(expression.initialValue, scope, existingTypes, compilerErrors);
-            if (expression.typeGuard !== undefined) {
-                const symbolType = resolveTypeName(scope, expression.typeGuard, existingTypes, compilerErrors);
+            if (expression.type !== undefined) {
+                const symbolType = resolveTypeName(scope, expression.type, existingTypes, compilerErrors);
                 if (symbolType !== varType) {
                     compilerErrors.addError(
                         new CompilerError(ErrorCode.BadTypeAssignment)

@@ -26,7 +26,7 @@ export class IfStatementExpression extends Expression {
             const primeExpression = elseBlockAst.getPrimeExpression();
             if (primeExpression === undefined) {
                 errorCollector.addError(
-                    new CompilerError(ErrorCode.MissingCodeBlock)
+                    new CompilerError(ErrorCode.ExpectedCodeBlock)
                         .addError(nextToken.position.end.offset(1), "Expected code block")
                         .addInfo(nextToken.position, "'else' statement expects a code block following immediately after")
                 );
@@ -70,7 +70,7 @@ export class IfStatementExpression extends Expression {
         const blockAst = this.readSingleStatement(tokenReader, true, errorCollector);
         if (blockAst.getPrimeExpression() === undefined) {
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingCodeBlock)
+                new CompilerError(ErrorCode.ExpectedCodeBlock)
                     .addError(thenKeyword.position.end.offset(1), "Expected code block")
                     .addInfo(thenKeyword.position, "'if' statement expects a code block after 'then'")
             );
@@ -102,13 +102,13 @@ export class IfStatementExpression extends Expression {
                 const primeExpression = conditionAst.getPrimeExpression()!;
                 if (primeExpression === undefined) {
                     errorCollector.addError(
-                        new CompilerError(ErrorCode.MissingCondition)
+                        new CompilerError(ErrorCode.ExpectedCondition)
                             .addError(ifKeywordToken.position.end.offset(1), "Expected condition")
                             .addInfo(ifKeywordToken.position, "'if' statement expects a condition following immediately after")
                     );
                 } else {
                     errorCollector.addError(
-                        new CompilerError(ErrorCode.MissingCodeBlock)
+                        new CompilerError(ErrorCode.ExpectedCodeBlock)
                             .addError(primeExpression.position.end.offset(1), "Expected code block or 'then' statement")
                             .addInfo(ifKeywordToken.position, "'if' statement expects a condition and then a code block following immediately after")
                     );

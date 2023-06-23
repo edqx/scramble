@@ -21,7 +21,7 @@ export class NumberToken extends Token {
                 return null;
             }
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingFractionalPart)
+                new CompilerError(ErrorCode.ExpectedFractionalPart)
                     .addError(stringReader.getPositionRange().end, "Missing fractional part")
             );
             return new NumberToken(`${integerPart}`, stringReader.getPositionRange());

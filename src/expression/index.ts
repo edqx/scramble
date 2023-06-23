@@ -12,6 +12,7 @@ export * from "./ParameterDeclaration";
 export * from "./Parenthesis";
 export * from "./ProcDeclaration";
 export * from "./ReturnStatement";
+export * from "./ReturnTypeIndicator";
 export * from "./Script";
 export * from "./StructFields";
 export * from "./String";

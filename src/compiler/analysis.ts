@@ -116,14 +116,16 @@ export function staticallyAnalyseExpression(
     } else if (expression instanceof ParenthesisExpression) {
         staticallyAnalyseBlock(parentScope, scopeTraversal, expression.expressions, symbols, errorCollector);
     } else if (expression instanceof ProcDeclarationExpression) {
-        for (const param of expression.parameters) {
-            staticallyAnalyseExpression(parentScope, scopeTraversal, param, symbols, errorCollector);
+        if (expression.isCodeDefinition()) {
+            for (const param of expression.parameters) {
+                staticallyAnalyseExpression(parentScope, scopeTraversal, param, symbols, errorCollector);
+            }
+            const procDeclaration = symbols.getSymbol(expression);
+            scopeTraversal.add(expression);
+            if (procDeclaration === undefined || !(procDeclaration instanceof ProcedureSymbol)) throw new Error("??");
+            staticallyAnalyseExpression(procDeclaration, scopeTraversal, expression.block, symbols, errorCollector);
+            return; // expression added to scope traversal
         }
-        const procDeclaration = symbols.getSymbol(expression);
-        scopeTraversal.add(expression);
-        if (procDeclaration === undefined || !(procDeclaration instanceof ProcedureSymbol)) throw new Error("??");
-        staticallyAnalyseExpression(procDeclaration, scopeTraversal, expression.block, symbols, errorCollector);
-        return; // expression added to scope traversal
     } else if (expression instanceof ReturnStatementExpression) {
         if (expression.expression !== undefined) {
             staticallyAnalyseExpression(parentScope, scopeTraversal, expression.expression, symbols, errorCollector);

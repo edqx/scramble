@@ -11,7 +11,8 @@ export enum TokenKind {
     StatementBreak,
     Accessor,
     TypeIndicator,
-    Separator
+    Separator,
+    ReturnTypeIndicator
 }
 
 export abstract class Token {

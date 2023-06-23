@@ -17,13 +17,13 @@ export class WhileStatementExpression extends Expression {
                 const primeExpression = conditionAst.getPrimeExpression()!;
                 if (primeExpression === undefined) {
                     errorCollector.addError(
-                        new CompilerError(ErrorCode.MissingCondition)
+                        new CompilerError(ErrorCode.ExpectedCondition)
                             .addError(whileKeywordToken.position.end.offset(1), "Expected condition")
                             .addInfo(whileKeywordToken.position, "'while' statement expects a condition following immediately after")
                     );
                 } else {
                     errorCollector.addError(
-                        new CompilerError(ErrorCode.MissingCodeBlock)
+                        new CompilerError(ErrorCode.ExpectedCodeBlock)
                             .addError(primeExpression.position.end.offset(1), "Expected code block or 'do' statement")
                             .addInfo(whileKeywordToken.position, "'while' statement expects a condition and then a code block following immediately after")
                     );
@@ -39,7 +39,7 @@ export class WhileStatementExpression extends Expression {
 
                     if (nextToken2 === undefined) {
                         errorCollector.addError(
-                            new CompilerError(ErrorCode.MissingCodeBlock)
+                            new CompilerError(ErrorCode.ExpectedCodeBlock)
                                 .addError(nextToken.position.end.offset(1), "Expected code block")
                                 .addInfo(whileKeywordToken.position, "'while' statement expects a code block after 'do'")
                         );

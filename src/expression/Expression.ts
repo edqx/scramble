@@ -19,7 +19,8 @@ export enum ExpressionKind {
     TypeGuard,
     VariableDeclaration,
     StructFields,
-    ClassDeclaration
+    ClassDeclaration,
+    ReturnTypeIndicator
 }
 
 export abstract class Expression {

@@ -15,6 +15,8 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         errorCollector: ErrorCollector
     ) {
         if (parentScope instanceof MacroSymbol) throw new Error("Cannot declare procedure in macro");
+
+        if (!expression.isCodeDefinition()) return;
         
         const error = parentScope.getErrorNotTaken(expression, expression.identifier);
         if (error) return errorCollector.addError(error);

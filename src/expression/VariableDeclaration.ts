@@ -8,6 +8,8 @@ import { TokenReader } from "../tokenReader";
 import { AccessorExpression } from "./Accessor";
 import { AssignmentExpression } from "./Assignment";
 import { Expression, ExpressionKind } from "./Expression";
+import { KeywordExpression } from "./Keyword";
+import { ProcDeclarationExpression } from "./ProcDeclaration";
 
 export class VariableDeclarationExpression extends Expression {
     static read(declarationToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -69,7 +71,7 @@ export class VariableDeclarationExpression extends Expression {
         declarationKeyword: KeywordToken,
         assignmentExpression: AssignmentExpression,
         public readonly identifier: string,
-        public readonly typeGuard: string|undefined,
+        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
         public readonly initialValue: Expression
     ) {
         super(ExpressionKind.VariableDeclaration, FilePositionRange.contain(declarationKeyword.position, assignmentExpression.position));

@@ -35,7 +35,7 @@ export class OperatorExpression extends Expression {
         const right = astCollector.popLastExpression();
         if (right === undefined) {
             errorCollector.addError(
-                new CompilerError(ErrorCode.MissingRightHandExpression)
+                new CompilerError(ErrorCode.ExpectedRightHandExpression)
                     .addError(operatorToken.position.end.offset(1), "Expected right-hand expression")
                     .addInfo(operatorToken.position, "Unary operators can only be used as a prefix, meaning a right-hand expression is required")
             );

@@ -9,6 +9,7 @@ import { FunctionCallExpression } from "./FunctionCall";
 import { KeywordExpression } from "./Keyword";
 import { MacroDeclarationExpression } from "./MacroDeclaration";
 import { TypeGuardExpression } from "./TypeGuard";
+import { ProcDeclarationExpression } from "./ProcDeclaration";
 
 export class AssignmentExpression extends Expression {
     static fromOperator(left: Expression, right: Expression, operatorToken: OperatorToken, astCollector: AstCollector, errorCollector: ErrorCollector) {
@@ -32,7 +33,11 @@ export class AssignmentExpression extends Expression {
         return;
     }
 
-    constructor(public readonly reference: KeywordExpression|AccessorExpression, public readonly type: string|undefined, public readonly value: Expression) {
+    constructor(
+        public readonly reference: KeywordExpression|AccessorExpression,
+        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
+        public readonly value: Expression
+    ) {
         super(ExpressionKind.Assignment, FilePositionRange.contain(reference.position, value.position));
     }
 }

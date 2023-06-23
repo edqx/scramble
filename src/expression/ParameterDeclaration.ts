@@ -1,14 +1,14 @@
 import { FilePositionRange } from "../stringReader";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
-import { TypeGuardExpression } from "./TypeGuard";
+import { ProcDeclarationExpression } from "./ProcDeclaration";
 
 export class ParameterDeclarationExpression extends Expression {
     identifier: string;
 
     constructor(
         identifier: KeywordExpression,
-        public readonly typeGuard: string|undefined,
+        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
         public readonly defaultValue: Expression|undefined
     ) {
         super(

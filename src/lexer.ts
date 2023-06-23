@@ -1,6 +1,6 @@
 import { ErrorCollector } from "./errorCollector";
 import { StringReader } from "./stringReader";
-import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, SeparatorToken, StatementBreakToken, StringToken, Token } from "./token";
+import { AccessorToken, CloseParenthesisToken, KeywordToken, NewlineToken, NumberToken, OpenParenthesisToken, OperatorToken, ReturnTypeIndicatorToken, SeparatorToken, StatementBreakToken, StringToken, Token } from "./token";
 import { TypeIndicatorToken } from "./token/TypeIndicator";
 
 function readSingleToken(stringReader: StringReader, errorCollector: ErrorCollector) {
@@ -14,6 +14,9 @@ function readSingleToken(stringReader: StringReader, errorCollector: ErrorCollec
     
     const string = StringToken.read(context, errorCollector);
     if (string !== null) return string;
+
+    const returnTypeIndicator = ReturnTypeIndicatorToken.read(context, errorCollector);
+    if (returnTypeIndicator !== null) return returnTypeIndicator;
 
     const operator = OperatorToken.read(context, errorCollector);
     if (operator !== null) return operator;
