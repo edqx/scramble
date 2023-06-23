@@ -13,5 +13,8 @@ export enum ErrorCode {
     VariableNotDeclared,
     IdentifierInUse,
     ExpectedFieldAssignment,
-    ExpectedFieldOrMethod
+    ExpectedFieldOrMethod,
+
+    BadTypeAssignment,
+    BadFunctioncall
 }

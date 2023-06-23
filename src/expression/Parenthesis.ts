@@ -80,7 +80,7 @@ export class ParenthesisExpression extends Expression {
         if (parenthesisExpression === null) return;
         
         const last = astCollector.peekLastExpression();
-        if ((last instanceof KeywordExpression || last instanceof AccessorExpression || last instanceof ParenthesisExpression) && openParenthesisToken.parenthesis === "(") {
+        if ((last instanceof KeywordExpression || last instanceof AccessorExpression || last instanceof ParenthesisExpression || last instanceof FunctionCallExpression) && openParenthesisToken.parenthesis === "(") {
             const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
             astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
             return;

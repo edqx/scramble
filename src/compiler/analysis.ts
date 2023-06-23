@@ -54,7 +54,24 @@ export function staticallyAnalyseExpression(
             staticallyAnalyseExpression(parentScope, scopeTraversal, method, symbols, errorCollector);
         }
     } else if (expression instanceof FunctionCallExpression) {
-        staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbols, errorCollector);
+        if (expression.reference instanceof KeywordExpression) {
+            const reference = parentScope.getIdentifierReference(expression.reference.keyword);
+            if (reference === undefined) throw new Error(`Could not find reference '${expression.reference.keyword}'`);
+    
+            if (!reference.flags.has(SymbolFlag.Hoisted) && !scopeTraversal.has(reference.expression))
+                throw new Error(`Reference not declared '${expression.reference.keyword}'`);
+                
+            let parent: ProcedureSymbol|MacroSymbol|ClassSymbol|undefined = parentScope;
+            while (parent !== undefined) {
+                if (parentScope === reference) {
+                    reference.flags.add(SymbolFlag.ProcUsedRecursively);
+                    break;
+                }
+               parent = parent.parent;
+            }
+        } else {
+            staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbols, errorCollector);
+        }
     } else if (expression instanceof IfStatementExpression) {
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.condition, symbols, errorCollector);
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.block, symbols, errorCollector);
