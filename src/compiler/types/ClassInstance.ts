@@ -30,7 +30,7 @@ export class ClassInstanceType extends Type {
     }
     
     isEquivalentTo(other: Type): boolean {
-        return false;
+        return this === other;
     }
 
     getName(): string {

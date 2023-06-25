@@ -3,7 +3,7 @@ import { VariableDeclarationExpression } from "../../expression";
 import { ListDefinition, VariableDefinition } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { Sprite } from "../Sprite";
+import { Sprite } from "../../scratch/Sprite";
 import { resolveSymbolType } from "../resolveSymbolType";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
 import { ProcedureSymbol } from "./Procedure";

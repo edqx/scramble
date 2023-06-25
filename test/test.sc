@@ -3,7 +3,13 @@ class Vector2 {
     y: number;
 }
 
-proc dot(a: Vector2, b: Vector2, name: string) {
-    a = Vector2{ x = 6, y = 3};
-    name = "Edward"
+class Player {
+    name: string;
+    position: Vector2;
+    velocity: Vector2;
+    age: number;
+}
+
+proc copyFromTo(vec1: Vector2, vec2: Vector2) {
+    vec2 = vec1;
 }

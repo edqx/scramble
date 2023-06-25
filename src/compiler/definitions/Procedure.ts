@@ -1,9 +1,9 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression } from "../../expression";
-import { Block, BlockRef, ListDefinition, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
+import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { Block, BlockRef, ListDefinition, ListValue, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { Sprite, Stack } from "../Sprite";
+import { Sprite, Stack } from "../../scratch/Sprite";
 import { staticallyAnalyseExpressionDeclaration } from "../analysis";
 import { inferExpressionType } from "../inferExpressionType";
 import { getProcedureSignature, resolveSymbolType } from "../resolveSymbolType";
@@ -12,12 +12,14 @@ import { ClassInstanceType } from "../types";
 import { ClassSymbol } from "./Class";
 import { MacroSymbol } from "./Macro";
 import { ParameterSymbol } from "./Parameter";
-import { ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
+import { CodeSymbol, ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
 import { VariableSymbol } from "./Variable";
 
 export class ParameterDefinition {
     constructor(public readonly name: string, public readonly block: Block) {}
 }
+
+export type PossibleParameterRedefinition = VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[];
 
 export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|ScriptExpression> {
     static analyseDeclaration(
@@ -99,7 +101,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const addFieldToList = new Block(
                 uniqueIds.nextId(),
                 "data_addtolist",
-                { ITEM: new Shadowed(undefined, new BlockRef(argReference.id)) },
+                { ITEM: new Shadowed(undefined, new BlockRef(argReference)) },
                 { LIST: [ list.name, list.id ] }
             );
             argReference.setParentId(addFieldToList.id);
@@ -115,7 +117,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         const setVarTo = new Block(
             uniqueIds.nextId(),
             "data_setvariableto",
-            { VALUE: new Shadowed(undefined, new BlockRef(argReference.id)) },
+            { VALUE: new Shadowed(undefined, new BlockRef(argReference)) },
             { VARIABLE: [ variable.name, variable.id ] }
         );
         argReference.setParentId(setVarTo.id);
@@ -161,7 +163,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             "procedures_prototype",
             Object.fromEntries(
                 parameterIds.map((id, i) => {
-                    return [ id, new Shadowed(undefined, new BlockRef(parameterDefinitions[i].block.id)) ];
+                    return [ id, new Shadowed(undefined, new BlockRef(parameterDefinitions[i].block)) ];
                 })
             ),
             { },
@@ -169,7 +171,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             {
                 tagName: "mutation",
                 children: [],
-                proccode: this.name + (parameterIds.length > 0 ? " " + parameterIds.map(() => "%s") : ""),
+                proccode: this.name + (parameterIds.length > 0 ? " " + parameterIds.map(() => "%s").join(" ") : ""),
                 argumentids: JSON.stringify(parameterIds),
                 argumentnames: JSON.stringify(parameterDefinitions.map(x => x.name)),
                 argumentdefaults: JSON.stringify(parameterIds.map(() => "")),
@@ -182,10 +184,240 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         return new Block(
             uniqueIds.nextId(),
             "procedures_definition",
-            { custom_block: new Shadowed(undefined, new BlockRef(procedurePrototype.id)) },
+            { custom_block: new Shadowed(undefined, new BlockRef(procedurePrototype)) },
             { },
             false, true
         );
+    }
+
+    getStructFieldInitializationVectorAtOffset(structType: ClassInstanceType, structInitialization: StructFieldsExpression, offset: number) {
+        const fieldAtIndex = [...structType.fields.values()].find(field => field.offset === offset);
+        if (fieldAtIndex === undefined) return undefined;
+        const initializationField = structInitialization.assignments.find(assignment => assignment.reference instanceof KeywordExpression && assignment.reference.keyword === fieldAtIndex.fieldSymbol.name);
+        if (initializationField === undefined) return undefined;
+
+        return initializationField.value;
+    }
+
+    protected createStructValueReference(
+        uniqueIds: IdGenerator,
+        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        fieldName: string,
+        initialOffset: number,
+        index: number,
+        type: ClassInstanceType,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        if (Array.isArray(from)) {
+            return new BlockRef(from[index].block);
+        } else if (from instanceof StructFieldsExpression) {
+            const initializationFieldValue = this.getStructFieldInitializationVectorAtOffset(type, from, index - initialOffset);
+            if (initializationFieldValue === undefined) throw new Error(`Struct field not initialized: '${fieldName}'`);
+            if (initializationFieldValue instanceof StructFieldsExpression) {
+                throw new Error("Cannot convert struct to value reference, this should not happening");
+            } else {
+                const value = this.generateBlocksForCodeBlock(uniqueIds, initializationFieldValue, parameterVariables, existingTypes, stack, errorCollector);
+                if (value instanceof ListDefinition || Array.isArray(value)) {
+                    throw new Error("Cannot convert struct to value reference, this should not happening");
+                } else {
+                    if (value instanceof Value) return value;
+                    if (value instanceof Stack) throw new Error("Cannot convert block stack to value reference");
+                    if (value instanceof ParameterDefinition) return new BlockRef(value.block);
+                    if (value instanceof VariableDefinition) return new VariableValue(value.name, value.id);
+
+                    throw new Error("Invalid value reference");
+                }
+            }
+        } else {
+            const listItemReference = new Block(
+                uniqueIds.nextId(),
+                "data_itemoflist",
+                { INDEX: new Shadowed(undefined, new NumberValue(index)) },
+                { LIST: [ from.name, from.id ] }
+            );
+            return new BlockRef(listItemReference);
+        }
+    }
+
+    protected recursiveGenerateCopyStructValuesBlocksImpl(
+        uniqueIds: IdGenerator,
+        index: number,
+        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        to: ListDefinition,
+        type: ClassInstanceType,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        let initialOffset = index;
+        for (const [ , field ] of type.fields) {
+            if (field.type instanceof ClassInstanceType) {
+                if (from instanceof StructFieldsExpression) {
+                    const initializationFieldValue = this.getStructFieldInitializationVectorAtOffset(type, from, index - initialOffset);
+                    console.log(field.fieldSymbol.name, field, from, initializationFieldValue);
+                    if (initializationFieldValue === undefined) throw new Error(`Struct field not initialized: '${field.fieldSymbol.name}'`);
+                    if (initializationFieldValue instanceof StructFieldsExpression) {
+                        this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, index, initializationFieldValue, to, field.type, parameterVariables, existingTypes, stack, errorCollector);
+                    } else {
+                        const value = this.generateBlocksForCodeBlock(uniqueIds, initializationFieldValue, parameterVariables, existingTypes, stack, errorCollector)
+                        if (value instanceof ListDefinition || Array.isArray(value)) {
+                            this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, index, value, to, field.type, parameterVariables, existingTypes, stack, errorCollector);
+                        } else {
+                            throw new Error("Bad assignment for type in struct field");
+                        }
+                    }
+                } else {
+                    this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, index, from, to, field.type, parameterVariables, existingTypes, stack, errorCollector);
+                }
+                index += field.type.size;
+                continue;
+            }
+
+            const fieldReference = this.createStructValueReference(uniqueIds, from, field.fieldSymbol.name, initialOffset, index, type, parameterVariables, existingTypes, stack, errorCollector);
+            const addFieldToList = new Block(
+                uniqueIds.nextId(),
+                "data_addtolist",
+                { ITEM: new Shadowed(undefined, fieldReference) },
+                { LIST: [ to.name, to.id ] }
+            );
+            if (fieldReference instanceof BlockRef) {
+                if (fieldReference.block.parentId === undefined) { // we re-use the parameter definition reporter block, so it may already have a parent
+                    fieldReference.block.setParentId(addFieldToList.id);
+                    stack.subBlocks.push(fieldReference.block); // if it has a parent, it's probably already a sub block
+                }
+                if (!stack.subBlocks.includes(fieldReference.block)) throw new Error("Bad assertion"); // TODO: remove, see comments above
+            }
+            stack.orderedStackBlocks.push(addFieldToList);
+            index++;
+        }
+    }
+
+    generateCopyStructValuesBlocks(
+        uniqueIds: IdGenerator,
+        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        to: ListDefinition,
+        type: ClassInstanceType,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        stack.orderedStackBlocks.push(
+            new Block(
+                uniqueIds.nextId(),
+                "data_deletealloflist",
+                {},
+                {
+                    LIST: [ to.name, to.id ]
+                }
+            )
+        );
+        this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, 0, from, to, type, parameterVariables, existingTypes, stack, errorCollector);
+    }
+
+    generateAssignmentBlockForVariable(
+        uniqueIds: IdGenerator,
+        leftSymbol: CodeSymbol,
+        assignmentValue: Expression,
+        accessVariable: VariableDefinition|ListDefinition|undefined,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        const leftType = resolveSymbolType(leftSymbol, existingTypes, errorCollector);
+        const rightType = inferExpressionType(assignmentValue, this, existingTypes, errorCollector);
+
+        if (!leftType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
+
+        if (accessVariable instanceof VariableDefinition) {
+            if (leftType.size !== 1) throw new Error("Got variable definition for type not of size 1");
+
+            const value = this.generateBlocksForCodeBlock(uniqueIds, assignmentValue, parameterVariables, existingTypes, stack, errorCollector);
+
+            if (value instanceof Value) {
+                const setVariableTo = new Block(
+                    uniqueIds.nextId(),
+                    "data_setvariableto",
+                    { VALUE: new Shadowed(undefined, value) },
+                    { VARIABLE: [ accessVariable.name, accessVariable.id ] }
+                );
+
+                stack.orderedStackBlocks.push(setVariableTo);
+            } else if (value instanceof VariableDefinition) {
+                const setVariableTo = new Block(
+                    uniqueIds.nextId(),
+                    "data_setvariableto",
+                    { VALUE: new Shadowed(undefined, new VariableValue(value.name, value.id)) },
+                    { VARIABLE: [ accessVariable.name, accessVariable.id ] }
+                );
+
+                stack.orderedStackBlocks.push(setVariableTo);
+            } else if (value instanceof ListDefinition || Array.isArray(value)) {
+                throw new Error("Got list definition to assign to variable");
+            } else if (value instanceof Stack) {
+                throw new Error("Got blocks to assign to variable");
+            }
+        } else if (accessVariable instanceof ListDefinition) {
+            if (leftType.size === 1) throw new Error("Got list definition for type of size 1");
+            if (!(leftType instanceof ClassInstanceType) || !(rightType instanceof ClassInstanceType)) throw new Error("Got list definition for non-class");
+
+            if (assignmentValue instanceof StructFieldsExpression) {
+                this.generateCopyStructValuesBlocks(uniqueIds, assignmentValue, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+                return;
+            }
+
+            const value = this.generateBlocksForCodeBlock(uniqueIds, assignmentValue, parameterVariables, existingTypes, stack, errorCollector);
+
+            if (value instanceof Value) {
+                throw new Error("Got value definition to assign to list");
+            } else if (value instanceof VariableDefinition) {
+                throw new Error("Got variable definition to assign to list");
+            } else if (value instanceof ListDefinition) {
+                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+            } else if (Array.isArray(value)) {
+                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+            } else if (value instanceof Stack) {
+                throw new Error("Got blocks to assign to variable");
+            }
+        }
+    }
+
+    generateAssignmentBlocks(
+        uniqueIds: IdGenerator,
+        expression: AssignmentExpression|VariableDeclarationExpression,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        if (expression instanceof AssignmentExpression && expression.reference instanceof AccessorExpression)
+            throw new Error("Assigning accessor expression not implemented yet.");
+        
+        const leftSymbol = expression instanceof VariableDeclarationExpression
+            ? this.getIdentifierReference(expression.identifier)
+            : this.getIdentifierReference((expression.reference as KeywordExpression).keyword);
+
+        const assignmentValue = expression instanceof VariableDeclarationExpression
+            ? expression.initialValue
+            : expression.value;
+
+        if (leftSymbol instanceof VariableSymbol) {
+            const varReference = leftSymbol.getVarDefinitionReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
+            this.generateAssignmentBlockForVariable(uniqueIds, leftSymbol, assignmentValue, varReference, parameterVariables, existingTypes, stack, errorCollector);
+        } else if (leftSymbol instanceof ParameterSymbol) {
+            const accessVariable = parameterVariables.get(leftSymbol);
+            if (accessVariable instanceof ParameterDefinition || Array.isArray(accessVariable))
+                throw new Error("Got assignment of parameter, but no intermediary variable or list is recognised.");
+
+            this.generateAssignmentBlockForVariable(uniqueIds, leftSymbol, assignmentValue, accessVariable, parameterVariables, existingTypes, stack, errorCollector);
+        } else {
+            throw new Error("Invalid assignment");
+        }
     }
 
     generateBlocksForCodeBlock(
@@ -195,69 +427,39 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         existingTypes: ExistingTypes,
         stack: Stack,
         errorCollector: ErrorCollector
-    ): (Block|Value|VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[])[] {
+    ): Stack|Value|VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[]|undefined {
         if (expression instanceof ParenthesisExpression) {
-
+            const subStack = stack.sprite.createStack();
+            for (const subExpression of expression.expressions) {
+                this.generateBlocksForCodeBlock(uniqueIds, subExpression, parameterVariables, existingTypes, subStack, errorCollector);
+            }
+            stack.applySubstack(subStack);
         } else if (expression instanceof FunctionCallExpression) {
 
-        } else if (expression instanceof AssignmentExpression) {
-            if (expression.reference instanceof AccessorExpression) {
-                throw new Error("Assigning accessor expression not implemented yet.");
-            }
-
-            const leftSymbol = this.getIdentifierReference(expression.reference.keyword);
-
-            if (leftSymbol instanceof VariableSymbol) {
-                
-            } else if (leftSymbol instanceof ParameterSymbol) {
-                const accessVariable = parameterVariables.get(leftSymbol);
-                if (accessVariable instanceof ParameterDefinition || Array.isArray(accessVariable))
-                    throw new Error("Got assignment of parameter, but no intermediary variable or list is recognised.");
-
-                const leftType = resolveSymbolType(leftSymbol, existingTypes, errorCollector);
-                const rightType = inferExpressionType(expression.value, this, existingTypes, errorCollector);
-
-                if (!leftType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
-
-                if (accessVariable instanceof VariableDefinition) {
-                    if (leftType.size !== 1) throw new Error("Got variable definition for type not of size 1");
-
-                    const value = this.generateBlocksForCodeBlock(uniqueIds, expression.value, parameterVariables, existingTypes, stack, errorCollector);
-                    const setVariableTo = new Block(
-                        uniqueIds.nextId(),
-                        "data_setvariableto",
-                        { VALUE: new Shadowed() }
-                    );
-                    stack.orderedStackBlocks.push(setVariableTo);
-                    stack.subBlocks.push(value);
-                } else if (accessVariable instanceof ListDefinition) {
-
-                }
-            } else {
-                throw new Error("Invalid assignment");
-            }
+        } else if (expression instanceof AssignmentExpression || expression instanceof VariableDeclarationExpression) {
+            this.generateAssignmentBlocks(uniqueIds, expression, parameterVariables, existingTypes, stack, errorCollector);
         } else if (expression instanceof ReturnStatementExpression) {
 
         } else if (expression instanceof KeywordExpression) {
             const refSymbol = this.getIdentifierReference(expression.keyword);
             if (refSymbol instanceof VariableSymbol) {
-                return [ refSymbol.getVarDefinitionReference(uniqueIds, existingTypes, errorCollector, stack.sprite) ];
+                return refSymbol.getVarDefinitionReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
             } else if (refSymbol instanceof ParameterSymbol) {
                 const accessVariable = parameterVariables.get(refSymbol);
                 if (accessVariable === undefined)
                     throw new Error("Failed to get parameter variable access.");
 
-                return [ accessVariable ];
+                return accessVariable;
             } else {
                 throw new Error("Invalid assignment");
             }
         } else if (expression instanceof NumberExpression) {
-            return [ new NumberValue(parseFloat(expression.unprocessedNumber)) ];
+            return new NumberValue(parseFloat(expression.unprocessedNumber));
         } else if (expression instanceof StringExpression) {
-            return [ new StringValue(expression.text) ];
+            return new StringValue(expression.text);
         }
 
-        return [];
+        return undefined;
     } 
 
     generateBlocks(uniqueIds: IdGenerator, existingTypes: ExistingTypes, sprite: Sprite, errorCollector: ErrorCollector) {
@@ -297,8 +499,9 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         const procedureDefinition = this.createProcedureDefinitionBlock(uniqueIds, procedurePrototype);
 
         stack.subBlocks.push(procedurePrototype);
-        sprite.applyStack(stack, procedureDefinition);
+        stack.orderedStackBlocks.unshift(procedureDefinition); // proc definition always at top
 
         this.generateBlocksForCodeBlock(uniqueIds, this.expression.block, parameterVariables, existingTypes, stack, errorCollector);
+        sprite.applyStack(stack, procedureDefinition);
     }
 }

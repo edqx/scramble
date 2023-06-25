@@ -7,7 +7,10 @@ import { parseAst } from "../src/parseAst";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
-import { CodeSymbol, ProcedureSymbol, SymbolFlag, SymbolType, createProjectOutline, IdGenerator, SymbolDeclarationStore, TypeSignature, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration, generateProcedureDefinition } from "../src/compiler";
+import { ProcedureSymbol, SymbolFlag, SymbolType, IdGenerator, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler";
+import { Type } from "../src/compiler/types";
+import { Sprite } from "../src/scratch/Sprite";
+import { ExistingTypes } from "../src/compiler/ExistingTypes";
 
 const errorCollector = new ErrorCollector;
 
@@ -44,20 +47,17 @@ console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => 
     return val;
 })), false, Infinity, true));
 
-const existingTypes: Map<CodeSymbol, TypeSignature> = new Map;
-createProjectOutline(ast.expressions, scriptWrapper, symbols, existingTypes, errorCollector);
-
-const variables: Map<string, [ string, any ]> = new Map;
-const lists: Map<string, [ string, string[] ]> = new Map;
-const broadcasts: Map<string, string> = new Map;
+const existingTypes = new ExistingTypes;
+const sprite = new Sprite;
 for (const [ , symbol ] of scriptWrapper.symbols) {
     if (symbol instanceof ProcedureSymbol) {
-        console.log(JSON.stringify(Object.fromEntries(generateProcedureDefinition(idGenerator, symbol, existingTypes, variables, lists, broadcasts, errorCollector).map(x => [ x.id, x ])), undefined, 4));
+        symbol.generateBlocks(idGenerator, existingTypes, sprite, errorCollector);
     }
 }
-console.log(JSON.stringify(Object.fromEntries([...variables.entries()]), undefined, 4));
-console.log(JSON.stringify(Object.fromEntries([...lists.entries()]), undefined, 4));
-console.log(JSON.stringify(Object.fromEntries([...broadcasts.entries()]), undefined, 4));
+console.log(JSON.stringify(sprite, (key, val) => {
+    if (key === "variables" || key === "lists" || key === "broadcasts" || key === "blocks") return Object.fromEntries([...val.entries()]);
+    return val;
+}, 4));
 
 const compilerErrors = errorCollector.getErrors();
 console.log("\n\n");

@@ -12,43 +12,47 @@ export enum ValueType {
 export abstract class Value {
     constructor(public readonly type: ValueType) {}
 
-    abstract toJSON(): any[];
+    toJSON() {
+        return [ this.type, ...this.getValues() ];
+    }
+
+    abstract getValues(): any[];
 }
 
 export class NumberValue extends Value {
     constructor(public readonly val: number) { super(ValueType.Number); }
 
-    toJSON(): any[] { return [ this.val ]; }
+    getValues(): any[] { return [ this.val ]; }
 }
 
 export class PosNumberValue extends Value {
     constructor(public readonly val: number) { super(ValueType.PosNumber); }
 
-    toJSON(): any[] { return [ this.val ]; }
+    getValues(): any[] { return [ this.val ]; }
 }
 
 export class PosIntegerValue extends Value {
     constructor(public readonly val: number) { super(ValueType.PosInt); }
 
-    toJSON(): any[] { return [ this.val ]; }
+    getValues(): any[] { return [ this.val ]; }
 }
 
 export class ColorValue extends Value {
     constructor(public readonly hexColor: string) { super(ValueType.Color); }
 
-    toJSON(): any[] { return [ "#" + this.hexColor ]; }
+    getValues(): any[] { return [ "#" + this.hexColor ]; }
 }
 
 export class StringValue extends Value {
     constructor(public readonly str: string) { super(ValueType.String); }
 
-    toJSON(): any[] { return [ this.str ]; }
+    getValues(): any[] { return [ this.str ]; }
 }
 
 export class BroadcastValue extends Value {
     constructor(public readonly broadcastName: string, public readonly broadcastId: string) { super(ValueType.Broadcast); }
 
-    toJSON(): any[] { return [ this.broadcastName, this.broadcastId ]; }
+    getValues(): any[] { return [ this.broadcastName, this.broadcastId ]; }
 }
 
 export class VariableValue extends Value {
@@ -61,7 +65,7 @@ export class VariableValue extends Value {
         super(ValueType.Variable);
     }
 
-    toJSON(): any[] { return [ this.variableName, this.variableId, this.x, this.y ]; }
+    getValues(): any[] { return [ this.variableName, this.variableId, this.x, this.y ]; }
 }
 
 export class ListValue extends Value {
@@ -74,7 +78,7 @@ export class ListValue extends Value {
         super(ValueType.List);
     }
 
-    toJSON(): any[] { return [ this.listName, this.listId, this.x, this.y ]; }
+    getValues(): any[] { return [ this.listName, this.listId, this.x, this.y ]; }
 }
 
 export abstract class FieldValue {

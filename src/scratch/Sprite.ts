@@ -1,4 +1,4 @@
-import { Block, BroadcastDefinition, ListDefinition, VariableDefinition } from "../scratch";
+import { Block, BroadcastDefinition, ListDefinition, VariableDefinition } from ".";
 
 export class Stack {
     orderedStackBlocks: Block[];
@@ -7,6 +7,11 @@ export class Stack {
     constructor(public readonly sprite: Sprite) {
         this.orderedStackBlocks = [];
         this.subBlocks = [];
+    }
+
+    applySubstack(subStack: Stack) {
+        this.orderedStackBlocks.push(...subStack.orderedStackBlocks);
+        this.subBlocks.push(...subStack.subBlocks);
     }
 }
 

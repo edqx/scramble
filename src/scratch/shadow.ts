@@ -1,3 +1,4 @@
+import { Block } from "./block";
 import { Value } from "./values";
 
 export enum ShadowState {
@@ -7,10 +8,10 @@ export enum ShadowState {
 }
 
 export class BlockRef {
-    constructor(public readonly blockId: string) {}
+    constructor(public readonly block: Block) {}
 
     toJSON() {
-        return this.blockId;
+        return this.block.id;
     }
 }
 
