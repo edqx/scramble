@@ -54,10 +54,13 @@ for (const [ , symbol ] of scriptWrapper.symbols) {
         symbol.generateBlocks(idGenerator, existingTypes, sprite, errorCollector);
     }
 }
-console.log(JSON.stringify(sprite, (key, val) => {
+const blocksJson = JSON.stringify(sprite, (key, val) => {
     if (key === "variables" || key === "lists" || key === "broadcasts" || key === "blocks") return Object.fromEntries([...val.entries()]);
     return val;
-}, 4));
+}, 4)
+console.log(blocksJson);
+
+fs.writeFileSync(path.resolve(__dirname, "./blocks.json"), blocksJson, "utf8");
 
 const compilerErrors = errorCollector.getErrors();
 console.log("\n\n");

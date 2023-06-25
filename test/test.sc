@@ -10,6 +10,7 @@ class Player {
     age: number;
 }
 
-proc copyFromTo(vec1: Vector2, vec2: Vector2) {
+proc copyFromTo(vec1: number, vec2: number) {
     vec2 = vec1;
 }
+

@@ -1,6 +1,6 @@
 import { ErrorCollector } from "../../errorCollector";
 import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
-import { Block, BlockRef, ListDefinition, ListValue, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
+import { Block, BlockRef, ListDefinition, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
 import { Sprite, Stack } from "../../scratch/Sprite";
@@ -97,32 +97,26 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             )
         );
         for (const param of params) {
-            const argReference = this.createParameterReferenceBlock(uniqueIds, param.name);
             const addFieldToList = new Block(
                 uniqueIds.nextId(),
                 "data_addtolist",
-                { ITEM: new Shadowed(undefined, new BlockRef(argReference)) },
+                { ITEM: new Shadowed(undefined, new BlockRef(param.block)) },
                 { LIST: [ list.name, list.id ] }
             );
-            argReference.setParentId(addFieldToList.id);
             stack.orderedStackBlocks.push(addFieldToList);
-            stack.subBlocks.push(argReference);
         }
         return list;
     }
 
     createIntermediateParamVariable(uniqueIds: IdGenerator, varName: string, param: ParameterDefinition, stack: Stack) {
         const variable = stack.sprite.createVariable(uniqueIds.nextId(), varName);
-        const argReference = this.createParameterReferenceBlock(uniqueIds, param.name);
         const setVarTo = new Block(
             uniqueIds.nextId(),
             "data_setvariableto",
-            { VALUE: new Shadowed(undefined, new BlockRef(argReference)) },
+            { VALUE: new Shadowed(undefined, new BlockRef(param.block)) },
             { VARIABLE: [ variable.name, variable.id ] }
         );
-        argReference.setParentId(setVarTo.id);
         stack.orderedStackBlocks.push(setVarTo);
-        stack.subBlocks.push(argReference);
         return variable;
     }
 
@@ -357,6 +351,15 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 );
 
                 stack.orderedStackBlocks.push(setVariableTo);
+            } else if (value instanceof ParameterDefinition) {
+                const setVariableTo = new Block(
+                    uniqueIds.nextId(),
+                    "data_setvariableto",
+                    { VALUE: new Shadowed(undefined, new BlockRef(value.block)) },
+                    { VARIABLE: [ accessVariable.name, accessVariable.id ] }
+                );
+
+                stack.orderedStackBlocks.push(setVariableTo);
             } else if (value instanceof ListDefinition || Array.isArray(value)) {
                 throw new Error("Got list definition to assign to variable");
             } else if (value instanceof Stack) {
@@ -489,13 +492,23 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                     parameterVariables.set(parameter.parameterSymbol, subParamDefinitions);
                 }
             } else {
-                const paramDefinition = this.createParameterDefinition(uniqueIds, parameter.parameterSymbol.name);
-                this.createIntermediateParamVariable(uniqueIds, "mut:" + parameter.parameterSymbol.name, paramDefinition, stack);
-                parameterVariables.set(parameter.parameterSymbol, paramDefinition);
+                const parameterDefinition = this.createParameterDefinition(uniqueIds, parameter.parameterSymbol.name);
+                parameterDefinitions.push(parameterDefinition);
+                if (parameter.parameterSymbol.flags.has(SymbolFlag.ParamReassigned)) {
+                    const variable = this.createIntermediateParamVariable(uniqueIds, "mut:" + parameter.parameterSymbol.name, parameterDefinition, stack);
+                    parameterVariables.set(parameter.parameterSymbol, variable);
+                } else {
+                    parameterVariables.set(parameter.parameterSymbol, parameterDefinition);
+                }
             }
         }
 
         const procedurePrototype = this.createProcedurePrototypeBlock(uniqueIds, parameterDefinitions);
+        for (const parameterDefinition of parameterDefinitions) {
+            console.log(parameterDefinition);
+            stack.subBlocks.push(parameterDefinition.block);
+            parameterDefinition.block.setParentId(procedurePrototype.id);
+        }
         const procedureDefinition = this.createProcedureDefinitionBlock(uniqueIds, procedurePrototype);
 
         stack.subBlocks.push(procedurePrototype);
