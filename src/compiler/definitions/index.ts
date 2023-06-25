@@ -4,4 +4,5 @@ export * from "./Macro";
 export * from "./Parameter";
 export * from "./Procedure";
 export * from "./Symbol";
+export * from "./TypeAlias";
 export * from "./Variable";

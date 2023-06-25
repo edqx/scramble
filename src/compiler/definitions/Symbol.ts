@@ -10,7 +10,8 @@ export enum SymbolType {
     Procedure,
     Class,
     Field,
-    Macro
+    Macro,
+    Type
 }
 
 export enum SymbolFlag {

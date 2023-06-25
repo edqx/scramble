@@ -1,4 +1,4 @@
-import { parseAst, parseSingleTokenAst } from "../ast";
+import { parseAst, parseSingleTokenAst } from "../parseAst";
 import { AstCollector } from "../astCollector";
 import { ErrorCollector } from "../errorCollector";
 import { CompilerError, ErrorCode } from "../error";

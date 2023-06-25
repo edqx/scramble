@@ -1,24 +1,9 @@
-proc ret(a: number) {
-    
+class Vector2 {
+    x: number;
+    y: number;
 }
 
-proc partial_function(fn: proc(a: number, b: number) -> number) {
-    proc ret(a: number) {
-        proc ret2(b: number) {
-            return fn(a, b);
-        }
-
-        return ret2;
-    }
-
-    return ret;
+proc dot(a: Vector2, b: Vector2, name: string) {
+    a = Vector2{ x = 6, y = 3};
+    name = "Edward"
 }
-
-proc add(a: number, b: number) -> number {
-    return a + b;
-}
-
-let partial_fn = partial_function(add);
-
-let result = partial_fn(3)(5);
-

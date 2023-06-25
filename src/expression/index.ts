@@ -15,6 +15,7 @@ export * from "./ReturnStatement";
 export * from "./ReturnTypeIndicator";
 export * from "./Script";
 export * from "./StructFields";
+export * from "./TypeAlias";
 export * from "./String";
 export * from "./TypeGuard";
 export * from "./UnaryOperator";

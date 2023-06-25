@@ -2,7 +2,7 @@ import { ErrorCollector } from "../errorCollector";
 import { FilePositionRange, StringReaderContext } from "../stringReader";
 import { Token, TokenKind } from "./Token";
 
-const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do", "else", "return", "let", "var", "class"])
+const STATEMENT_KEYWORDS = new Set(["if", "then", "while", "do", "else", "return", "let", "var", "class", "type"])
 
 export class KeywordToken extends Token {
     static read(stringReader: StringReaderContext, errorCollector: ErrorCollector) {

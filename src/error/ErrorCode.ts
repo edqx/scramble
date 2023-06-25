@@ -1,6 +1,7 @@
 export enum ErrorCode {
     ExpectedFractionalPart,
     InvalidLeftHandSideReference,
+    InvalidRightHandSideAssignment,
     InvalidParameterDeclaration,
     MismatchedParenthesis,
     ExpectedCondition,
@@ -10,6 +11,7 @@ export enum ErrorCode {
     UnexpectedTermination,
     ExpectedRightHandExpression,
     ExpectedVariableDeclaration,
+    ExpectedTypeAliasDeclaration,
     IdentifierNotFound,
     VariableNotDeclared,
     IdentifierInUse,

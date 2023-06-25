@@ -1,6 +1,6 @@
 import { ErrorCollector } from "../errorCollector";
-import { AccessorExpression, AssignmentExpression, ClassDeclarationExpression, Expression, FunctionCallExpression, IfStatementExpression, KeywordExpression, MacroDeclarationExpression, NumberExpression, OperatorExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, StructFieldsExpression, TypeGuardExpression, UnaryOperatorExpression, VariableDeclarationExpression, WhileStatementExpression } from "../expression";
-import { ClassSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, SymbolFlag, VariableSymbol } from "./definitions";
+import { AccessorExpression, AssignmentExpression, ClassDeclarationExpression, Expression, FunctionCallExpression, IfStatementExpression, KeywordExpression, MacroDeclarationExpression, NumberExpression, OperatorExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, StructFieldsExpression, TypeAliasDeclarationExpression, TypeGuardExpression, UnaryOperatorExpression, VariableDeclarationExpression, WhileStatementExpression } from "../expression";
+import { ClassSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, SymbolFlag, TypeAliasSymbol, VariableSymbol } from "./definitions";
 import { SymbolDeclarationStore } from "./symbolDeclarationStore";
 
 export function staticallyAnalyseExpressionDeclaration(
@@ -11,8 +11,8 @@ export function staticallyAnalyseExpressionDeclaration(
 ) {
     if (expression instanceof ClassDeclarationExpression) {
         ClassSymbol.analyseDeclaration(parentScope, expression, symbols, errorCollector);
-    } else if (expression instanceof TypeGuardExpression) {
-
+    } else if (expression instanceof TypeAliasDeclarationExpression && parentScope instanceof ProcedureSymbol) {
+        TypeAliasSymbol.analyseDeclaration(parentScope, expression, symbols, errorCollector);
     } else if (expression instanceof MacroDeclarationExpression) {
         MacroSymbol.analyseDeclaration(parentScope, expression, symbols, errorCollector);
     } else if (expression instanceof ParameterDeclarationExpression && parentScope instanceof ProcedureSymbol) {

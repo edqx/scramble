@@ -3,13 +3,11 @@ import chalk from "chalk";
 import util from "node:util";
 import path from "node:path";
 import { readFileTokens } from "../src/lexer";
-import { parseAst } from "../src/ast";
+import { parseAst } from "../src/parseAst";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
-import { ProcedureSymbol, SymbolFlag, SymbolType } from "../src/compiler/definitions";
-import { createProjectOutline, SymbolDeclarationStore } from "../src/compiler";
-import { staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler/analysis";
+import { CodeSymbol, ProcedureSymbol, SymbolFlag, SymbolType, createProjectOutline, IdGenerator, SymbolDeclarationStore, TypeSignature, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration, generateProcedureDefinition } from "../src/compiler";
 
 const errorCollector = new ErrorCollector;
 
@@ -29,14 +27,14 @@ console.log(util.inspect(JSON.parse(JSON.stringify(ast, (key, val) => {
 const scriptExpression = new ScriptExpression(ast.expressions);
 
 const scriptWrapper = new ProcedureSymbol("", undefined, "#script", scriptExpression);
-const symbols = new SymbolDeclarationStore;
+const idGenerator = new IdGenerator;
+const symbols = new SymbolDeclarationStore(idGenerator);
 const traversal: Set<Expression> = new Set;
 for (const expression of ast.expressions) {
     staticallyAnalyseExpressionDeclaration(scriptWrapper, expression, symbols, errorCollector);
 }
 staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, symbols, errorCollector);
 
-createProjectOutline(ast.expressions, scriptWrapper, symbols, errorCollector);
 console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => {
     if (key === "position" || key === "expression" || key === "parent") return undefined;
     if (key === "flags") return [...val].map(flag => SymbolFlag[flag]);
@@ -44,7 +42,22 @@ console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => 
     if (key === "symbols" || key === "children") return Object.fromEntries([...val.entries()]);
     if (key === "kind") return ExpressionKind[val];
     return val;
-})), false, Infinity, true))
+})), false, Infinity, true));
+
+const existingTypes: Map<CodeSymbol, TypeSignature> = new Map;
+createProjectOutline(ast.expressions, scriptWrapper, symbols, existingTypes, errorCollector);
+
+const variables: Map<string, [ string, any ]> = new Map;
+const lists: Map<string, [ string, string[] ]> = new Map;
+const broadcasts: Map<string, string> = new Map;
+for (const [ , symbol ] of scriptWrapper.symbols) {
+    if (symbol instanceof ProcedureSymbol) {
+        console.log(JSON.stringify(Object.fromEntries(generateProcedureDefinition(idGenerator, symbol, existingTypes, variables, lists, broadcasts, errorCollector).map(x => [ x.id, x ])), undefined, 4));
+    }
+}
+console.log(JSON.stringify(Object.fromEntries([...variables.entries()]), undefined, 4));
+console.log(JSON.stringify(Object.fromEntries([...lists.entries()]), undefined, 4));
+console.log(JSON.stringify(Object.fromEntries([...broadcasts.entries()]), undefined, 4));
 
 const compilerErrors = errorCollector.getErrors();
 console.log("\n\n");
