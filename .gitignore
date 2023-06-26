@@ -162,5 +162,5 @@ dist
 
 z
 test
-!./test/test.ts
-!./test/test.sc
+!test/test.ts
+!test/test.sc
