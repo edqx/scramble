@@ -117,19 +117,6 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         return this._cachedBroadcastProxyParams;
     }
 
-    createParameterBlock(uniqueIds: IdGenerator, name: string) {
-        return new Block(
-            uniqueIds.nextId(),
-            "argument_reporter_string_number",
-            {},
-            {
-                VALUE: [ name, null ]
-            },
-            true,
-            false
-        )
-    }
-
     createParameterReferenceBlock(uniqueIds: IdGenerator, name: string) {
         return new Block(
             uniqueIds.nextId(),
@@ -140,7 +127,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             },
             true,
             false
-        );
+        )
     }
 
     createParameterDefinition(uniqueIds: IdGenerator, name: string) {
