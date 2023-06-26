@@ -63,7 +63,15 @@ in argument ${i + 1} for function signature '${procSignature.getName()}'`)
 
         return procSignature.returnType;
     } else if (expression instanceof AccessorExpression) {
+        const baseType = inferExpressionType(expression.base, expressionScope, existingTypes, errorCollector);
+        if (baseType instanceof ClassInstanceType) {
+            const field = baseType.fields.get(expression.property.keyword);
+            if (field === undefined) throw new Error(`Property ${expression.property.keyword} not found on type ${baseType.getName()}`);
 
+            return field.type;
+        } else {
+            throw new Error("Cannot access property on non-class instance");
+        }
     } else if (expression instanceof KeywordExpression) {
         const referenceSymbol = expressionScope.getIdentifierReference(expression.keyword);
         if (referenceSymbol === undefined) {

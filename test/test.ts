@@ -36,7 +36,7 @@ const traversal: Set<Expression> = new Set;
 for (const expression of ast.expressions) {
     staticallyAnalyseExpressionDeclaration(scriptWrapper, expression, symbols, errorCollector);
 }
-staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, symbols, errorCollector);
+staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, undefined, symbols, errorCollector);
 
 console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => {
     if (key === "position" || key === "expression" || key === "parent") return undefined;

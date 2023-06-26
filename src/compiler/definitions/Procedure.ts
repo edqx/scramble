@@ -1,5 +1,5 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
 import { Block, BlockRef, ListDefinition, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
@@ -8,7 +8,7 @@ import { staticallyAnalyseExpressionDeclaration } from "../analysis";
 import { inferExpressionType } from "../inferExpressionType";
 import { getProcedureSignature, resolveSymbolType } from "../resolveSymbolType";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
-import { ClassInstanceType } from "../types";
+import { ClassInstanceType, PrimitiveType, Type } from "../types";
 import { ClassSymbol } from "./Class";
 import { MacroSymbol } from "./Macro";
 import { ParameterSymbol } from "./Parameter";
@@ -17,6 +17,10 @@ import { VariableSymbol } from "./Variable";
 
 export class ParameterDefinition {
     constructor(public readonly name: string, public readonly block: Block) {}
+}
+
+export class SubListDefinition {
+    constructor(public readonly list: ListDefinition, public readonly sliceStart: number, public readonly sliceSize: number) {}
 }
 
 export type PossibleParameterRedefinition = VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[];
@@ -195,7 +199,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
     protected createStructValueReference(
         uniqueIds: IdGenerator,
-        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression|SubListDefinition,
         fieldName: string,
         initialOffset: number,
         index: number,
@@ -225,12 +229,20 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                     throw new Error("Invalid value reference");
                 }
             }
-        } else {
+        } else if (from instanceof ListDefinition) {
             const listItemReference = new Block(
                 uniqueIds.nextId(),
                 "data_itemoflist",
                 { INDEX: new Shadowed(undefined, new NumberValue(index)) },
                 { LIST: [ from.name, from.id ] }
+            );
+            return new BlockRef(listItemReference);
+        } else if (from instanceof SubListDefinition) {
+            const listItemReference = new Block(
+                uniqueIds.nextId(),
+                "data_itemoflist",
+                { INDEX: new Shadowed(undefined, new NumberValue(from.sliceSize + index)) },
+                { LIST: [ from.list.name, from.list.id ] }
             );
             return new BlockRef(listItemReference);
         }
@@ -239,8 +251,8 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
     protected recursiveGenerateCopyStructValuesBlocksImpl(
         uniqueIds: IdGenerator,
         index: number,
-        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
-        to: ListDefinition,
+        from: ListDefinition|SubListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        to: ListDefinition|SubListDefinition,
         type: ClassInstanceType,
         parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
         existingTypes: ExistingTypes,
@@ -252,7 +264,6 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             if (field.type instanceof ClassInstanceType) {
                 if (from instanceof StructFieldsExpression) {
                     const initializationFieldValue = this.getStructFieldInitializationVectorAtOffset(type, from, index - initialOffset);
-                    console.log(field.fieldSymbol.name, field, from, initializationFieldValue);
                     if (initializationFieldValue === undefined) throw new Error(`Struct field not initialized: '${field.fieldSymbol.name}'`);
                     if (initializationFieldValue instanceof StructFieldsExpression) {
                         this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, index, initializationFieldValue, to, field.type, parameterVariables, existingTypes, stack, errorCollector);
@@ -272,64 +283,163 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             }
 
             const fieldReference = this.createStructValueReference(uniqueIds, from, field.fieldSymbol.name, initialOffset, index, type, parameterVariables, existingTypes, stack, errorCollector);
-            const addFieldToList = new Block(
-                uniqueIds.nextId(),
-                "data_addtolist",
-                { ITEM: new Shadowed(undefined, fieldReference) },
-                { LIST: [ to.name, to.id ] }
-            );
-            if (fieldReference instanceof BlockRef) {
-                if (fieldReference.block.parentId === undefined) { // we re-use the parameter definition reporter block, so it may already have a parent
-                    fieldReference.block.setParentId(addFieldToList.id);
-                    stack.subBlocks.push(fieldReference.block); // if it has a parent, it's probably already a sub block
+            if (to instanceof SubListDefinition) {
+                const insertFieldToList = new Block(
+                    uniqueIds.nextId(),
+                    "data_insertatlist",
+                    {
+                        ITEM: new Shadowed(undefined, fieldReference),
+                        INDEX: new Shadowed(undefined, new NumberValue(to.sliceStart + index + 1 /* scratch indexes start at 1 */))
+                    },
+                    { LIST: [ to.list.name, to.list.id ] }
+                );
+                if (fieldReference instanceof BlockRef) {
+                    if (fieldReference.block.parentId === undefined) { // we re-use the parameter definition reporter block, so it may already have a parent
+                        fieldReference.block.setParentId(insertFieldToList.id);
+                        stack.subBlocks.push(fieldReference.block); // if it has a parent, it's probably already a sub block
+                    }
+                    if (!stack.subBlocks.includes(fieldReference.block)) throw new Error("Bad assertion"); // TODO: remove, see comments above
                 }
-                if (!stack.subBlocks.includes(fieldReference.block)) throw new Error("Bad assertion"); // TODO: remove, see comments above
+                stack.orderedStackBlocks.push(insertFieldToList);
+            } else {
+                const addFieldToList = new Block(
+                    uniqueIds.nextId(),
+                    "data_addtolist",
+                    { ITEM: new Shadowed(undefined, fieldReference) },
+                    { LIST: [ to.name, to.id ] }
+                );
+                if (fieldReference instanceof BlockRef) {
+                    if (fieldReference.block.parentId === undefined) { // we re-use the parameter definition reporter block, so it may already have a parent
+                        fieldReference.block.setParentId(addFieldToList.id);
+                        stack.subBlocks.push(fieldReference.block); // if it has a parent, it's probably already a sub block
+                    }
+                    if (!stack.subBlocks.includes(fieldReference.block)) throw new Error("Bad assertion"); // TODO: remove, see comments above
+                }
+                stack.orderedStackBlocks.push(addFieldToList);
             }
-            stack.orderedStackBlocks.push(addFieldToList);
             index++;
         }
     }
 
-    generateCopyStructValuesBlocks(
+    createSingleStructValueReference(
         uniqueIds: IdGenerator,
-        from: ListDefinition|ParameterDefinition[]|StructFieldsExpression,
-        to: ListDefinition,
-        type: ClassInstanceType,
+        from: Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[],
+        parameterVariables:Map<ParameterSymbol, PossibleParameterRedefinition>
+    ) {
+        if (from instanceof Value) return from;
+        if (from instanceof ParameterDefinition) return new BlockRef(from.block);
+        if (Array.isArray(from)) return new BlockRef(from[0].block);
+        if (from instanceof VariableDefinition) return new VariableValue(from.name, from.id);
+        if (from instanceof ListDefinition) {
+            const listItemReference = new Block(
+                uniqueIds.nextId(),
+                "data_itemoflist",
+                { INDEX: new Shadowed(undefined, new NumberValue(0)) },
+                { LIST: [ from.name, from.id ] }
+            );
+            return new BlockRef(listItemReference);
+        }
+        if (from instanceof SubListDefinition) {
+            const listItemReference = new Block(
+                uniqueIds.nextId(),
+                "data_itemoflist",
+                { INDEX: new Shadowed(undefined, new NumberValue(from.sliceStart)) },
+                { LIST: [ from.list.name, from.list.id ] }
+            );
+            return new BlockRef(listItemReference);
+        }
+    }
+
+    generateReplaceSingleList(
+        uniqueIds: IdGenerator,
+        from: Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[],
+        to: ListDefinition|SubListDefinition,
+        type: Type,
         parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
         existingTypes: ExistingTypes,
         stack: Stack,
         errorCollector: ErrorCollector
     ) {
-        stack.orderedStackBlocks.push(
-            new Block(
-                uniqueIds.nextId(),
-                "data_deletealloflist",
-                {},
-                {
-                    LIST: [ to.name, to.id ]
-                }
-            )
+        const reference = this.createSingleStructValueReference(uniqueIds, from, parameterVariables);
+        const replaceFieldInList = new Block(
+            uniqueIds.nextId(),
+            "data_replaceitemoflist",
+            {
+                INDEX: new Shadowed(undefined, to instanceof ListDefinition ? new NumberValue(1) : new NumberValue(to.sliceStart + 1 /* scratch lists start at 1 */)),
+                ITEM: new Shadowed(undefined, reference)
+            },
+            {
+                LIST: to instanceof ListDefinition ? [ to.name, to.id ] : [ to.list.name, to.list.id ]
+            }
         );
+
+        if (reference instanceof BlockRef) {
+            if (reference.block.parentId === undefined) { // we re-use the parameter definition reporter block, so it may already have a parent
+                reference.block.setParentId(replaceFieldInList.id);
+            }
+            if (!stack.subBlocks.includes(reference.block)) stack.subBlocks.push(reference.block); // TODO: remove, see comments above
+        }
+        stack.orderedStackBlocks.push(replaceFieldInList);
+    }
+
+    generateCopyStructValuesBlocks(
+        uniqueIds: IdGenerator,
+        from: ListDefinition|SubListDefinition|ParameterDefinition[]|StructFieldsExpression,
+        to: ListDefinition|SubListDefinition,
+        type: Type,
+        parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        if (!(type instanceof ClassInstanceType)) {
+            if (from instanceof StructFieldsExpression) throw new Error("Unexpected struct fields for single value");
+            this.generateReplaceSingleList(uniqueIds, from, to, type, parameterVariables, existingTypes, stack, errorCollector);
+            return;
+        }
+
+        if (to instanceof SubListDefinition) {
+            for (let i = 0; i < to.sliceSize; i++) {
+                stack.orderedStackBlocks.push(
+                    new Block(
+                        uniqueIds.nextId(),
+                        "data_deleteoflist",
+                        {
+                            INDEX: new Shadowed(undefined, new NumberValue(to.sliceStart + 1 /* scratch indexes start at 1 */))
+                        },
+                        {
+                            LIST: [ to.list.name, to.list.id ]
+                        }
+                    )
+                );
+            }
+        } else {
+            stack.orderedStackBlocks.push(
+                new Block(
+                    uniqueIds.nextId(),
+                    "data_deletealloflist",
+                    {},
+                    {
+                        LIST: [ to.name, to.id ]
+                    }
+                )
+            );
+        }
         this.recursiveGenerateCopyStructValuesBlocksImpl(uniqueIds, 0, from, to, type, parameterVariables, existingTypes, stack, errorCollector);
     }
 
     generateAssignmentBlockForVariable(
         uniqueIds: IdGenerator,
-        leftSymbol: CodeSymbol,
+        type: Type,
         assignmentValue: Expression,
-        accessVariable: VariableDefinition|ListDefinition|undefined,
+        accessVariable: VariableDefinition|ListDefinition|SubListDefinition|undefined,
         parameterVariables: Map<ParameterSymbol, PossibleParameterRedefinition>,
         existingTypes: ExistingTypes,
         stack: Stack,
         errorCollector: ErrorCollector
     ) {
-        const leftType = resolveSymbolType(leftSymbol, existingTypes, errorCollector);
-        const rightType = inferExpressionType(assignmentValue, this, existingTypes, errorCollector);
-
-        if (!leftType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
-
         if (accessVariable instanceof VariableDefinition) {
-            if (leftType.size !== 1) throw new Error("Got variable definition for type not of size 1");
+            if (type.size !== 1) throw new Error("Got variable definition for type not of size 1");
 
             const value = this.generateBlocksForCodeBlock(uniqueIds, assignmentValue, parameterVariables, existingTypes, stack, errorCollector);
 
@@ -360,30 +470,29 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 );
 
                 stack.orderedStackBlocks.push(setVariableTo);
-            } else if (value instanceof ListDefinition || Array.isArray(value)) {
+            } else if (value instanceof ListDefinition || Array.isArray(value) || value instanceof SubListDefinition) {
                 throw new Error("Got list definition to assign to variable");
             } else if (value instanceof Stack) {
                 throw new Error("Got blocks to assign to variable");
             }
-        } else if (accessVariable instanceof ListDefinition) {
-            if (leftType.size === 1) throw new Error("Got list definition for type of size 1");
-            if (!(leftType instanceof ClassInstanceType) || !(rightType instanceof ClassInstanceType)) throw new Error("Got list definition for non-class");
-
+        } else if (accessVariable instanceof ListDefinition || accessVariable instanceof SubListDefinition) {
             if (assignmentValue instanceof StructFieldsExpression) {
-                this.generateCopyStructValuesBlocks(uniqueIds, assignmentValue, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+                this.generateCopyStructValuesBlocks(uniqueIds, assignmentValue, accessVariable, type, parameterVariables, existingTypes, stack, errorCollector);
                 return;
             }
 
             const value = this.generateBlocksForCodeBlock(uniqueIds, assignmentValue, parameterVariables, existingTypes, stack, errorCollector);
 
             if (value instanceof Value) {
-                throw new Error("Got value definition to assign to list");
+                if (type.size > 1) throw new Error("Cannot assign value to non-singular list definition");
+                this.generateReplaceSingleList(uniqueIds, value, accessVariable, type, parameterVariables, existingTypes, stack, errorCollector);
             } else if (value instanceof VariableDefinition) {
-                throw new Error("Got variable definition to assign to list");
-            } else if (value instanceof ListDefinition) {
-                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+                if (type.size > 1) throw new Error("Cannot assign value to non-singular list definition");
+                this.generateReplaceSingleList(uniqueIds, value, accessVariable, type, parameterVariables, existingTypes, stack, errorCollector);
+            } else if (value instanceof ListDefinition || value instanceof SubListDefinition || Array.isArray(value)) {
+                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, type, parameterVariables, existingTypes, stack, errorCollector);
             } else if (Array.isArray(value)) {
-                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, leftType, parameterVariables, existingTypes, stack, errorCollector);
+                this.generateCopyStructValuesBlocks(uniqueIds, value, accessVariable, type, parameterVariables, existingTypes, stack, errorCollector);
             } else if (value instanceof Stack) {
                 throw new Error("Got blocks to assign to variable");
             }
@@ -398,9 +507,22 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         stack: Stack,
         errorCollector: ErrorCollector
     ) {
-        if (expression instanceof AssignmentExpression && expression.reference instanceof AccessorExpression)
-            throw new Error("Assigning accessor expression not implemented yet.");
-        
+        if (expression instanceof AssignmentExpression && expression.reference instanceof AccessorExpression) {
+            const baseType = inferExpressionType(expression.reference, this, existingTypes, errorCollector);
+            const baseReference = this.generateBlocksForCodeBlock(uniqueIds, expression.reference, parameterVariables, existingTypes, stack, errorCollector);
+            if (baseReference === undefined) throw new Error("Failed to get base to assign");
+            if (baseReference instanceof Value || baseReference instanceof Stack) throw new Error("Cannot assign stack or value");
+            
+            const rightType = inferExpressionType(expression.value, this, existingTypes, errorCollector);
+    
+            if (!baseType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
+            if (baseReference instanceof ParameterDefinition || Array.isArray(baseReference))
+                throw new Error("Unexpected parameter definition reference for re-assignment");
+
+            this.generateAssignmentBlockForVariable(uniqueIds, baseType, expression.value, baseReference, parameterVariables, existingTypes, stack, errorCollector);
+            return;
+        }
+
         const leftSymbol = expression instanceof VariableDeclarationExpression
             ? this.getIdentifierReference(expression.identifier)
             : this.getIdentifierReference((expression.reference as KeywordExpression).keyword);
@@ -411,13 +533,23 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
         if (leftSymbol instanceof VariableSymbol) {
             const varReference = leftSymbol.getVarDefinitionReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
-            this.generateAssignmentBlockForVariable(uniqueIds, leftSymbol, assignmentValue, varReference, parameterVariables, existingTypes, stack, errorCollector);
+            const leftType = resolveSymbolType(leftSymbol, existingTypes, errorCollector);
+            const rightType = inferExpressionType(assignmentValue, this, existingTypes, errorCollector);
+    
+            if (!leftType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
+    
+            this.generateAssignmentBlockForVariable(uniqueIds, leftType, assignmentValue, varReference, parameterVariables, existingTypes, stack, errorCollector);
         } else if (leftSymbol instanceof ParameterSymbol) {
             const accessVariable = parameterVariables.get(leftSymbol);
             if (accessVariable instanceof ParameterDefinition || Array.isArray(accessVariable))
                 throw new Error("Got assignment of parameter, but no intermediary variable or list is recognised.");
 
-            this.generateAssignmentBlockForVariable(uniqueIds, leftSymbol, assignmentValue, accessVariable, parameterVariables, existingTypes, stack, errorCollector);
+            const leftType = resolveSymbolType(leftSymbol, existingTypes, errorCollector);
+            const rightType = inferExpressionType(assignmentValue, this, existingTypes, errorCollector);
+    
+            if (!leftType.isEquivalentTo(rightType)) throw new Error("Bad assignment");
+        
+            this.generateAssignmentBlockForVariable(uniqueIds, leftType, assignmentValue, accessVariable, parameterVariables, existingTypes, stack, errorCollector);
         } else {
             throw new Error("Invalid assignment");
         }
@@ -430,7 +562,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         existingTypes: ExistingTypes,
         stack: Stack,
         errorCollector: ErrorCollector
-    ): Stack|Value|VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[]|undefined {
+    ): Stack|Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[]|undefined {
         if (expression instanceof ParenthesisExpression) {
             const subStack = stack.sprite.createStack();
             for (const subExpression of expression.expressions) {
@@ -455,6 +587,27 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 return accessVariable;
             } else {
                 throw new Error("Invalid assignment");
+            }
+        } else if (expression instanceof AccessorExpression) {
+            const baseType = inferExpressionType(expression.base, this, existingTypes, errorCollector);
+            const baseAccess = this.generateBlocksForCodeBlock(uniqueIds, expression.base, parameterVariables, existingTypes, stack, errorCollector);
+            if (baseAccess instanceof Stack) throw new Error("Cannot access property on stack");
+            if (!(baseType instanceof ClassInstanceType)) throw new Error("Cannot access property on non-class");
+
+            const fieldType = baseType.fields.get(expression.property.keyword);
+            if (fieldType === undefined) throw new Error(`No field on class '${baseType.classSymbol.name}' of property '${expression.property.keyword}'`);
+            if (Array.isArray(baseAccess)) {
+                return baseAccess.slice(fieldType.offset, fieldType.offset + fieldType.type.size);
+            } else if (baseAccess instanceof VariableDefinition) {
+                throw new Error("Cannot access property on variable definition");
+            } else if (baseAccess instanceof ParameterDefinition) {
+                throw new Error("Cannot access property on parameter definition");
+            } else if (baseAccess instanceof Value) {
+                throw new Error("Cannot access property on value");
+            } else if (baseAccess instanceof ListDefinition) {
+                return new SubListDefinition(baseAccess, fieldType.offset, fieldType.type.size);
+            } else if (baseAccess instanceof SubListDefinition) {
+                return new SubListDefinition(baseAccess.list, fieldType.offset, fieldType.type.size);
             }
         } else if (expression instanceof NumberExpression) {
             return new NumberValue(parseFloat(expression.unprocessedNumber));

@@ -10,7 +10,40 @@ class Player {
     age: number;
 }
 
-proc copyFromTo(vec1: number, vec2: number) {
-    vec2 = vec1;
+proc copyFromTo(p1: Player, p2: Player) {
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
+    p1.position = Vector2{ x = 0; y = 0; };
+    p2.position = p1.position;
 }
+
+
 
