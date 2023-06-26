@@ -10,6 +10,7 @@
     "typescript": "^5.1.3"
   },
   "dependencies": {
-    "chalk": "4"
+    "chalk": "4",
+    "jszip": "^3.10.1"
   }
 }

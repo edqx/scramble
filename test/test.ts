@@ -1,14 +1,14 @@
 import fs from "node:fs";
-import chalk from "chalk";
 import util from "node:util";
 import path from "node:path";
+import chalk from "chalk";
+import JSZip from "jszip";
 import { readFileTokens } from "../src/lexer";
 import { parseAst } from "../src/parseAst";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
 import { ProcedureSymbol, SymbolFlag, SymbolType, IdGenerator, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler";
-import { Type } from "../src/compiler/types";
 import { Sprite } from "../src/scratch/Sprite";
 import { ExistingTypes } from "../src/compiler/ExistingTypes";
 
@@ -54,13 +54,29 @@ for (const [ , symbol ] of scriptWrapper.symbols) {
         symbol.generateBlocks(idGenerator, existingTypes, sprite, errorCollector);
     }
 }
-const blocksJson = JSON.stringify(sprite, (key, val) => {
+const spriteJson = JSON.parse(JSON.stringify(sprite, (key, val) => {
     if (key === "variables" || key === "lists" || key === "broadcasts" || key === "blocks") return Object.fromEntries([...val.entries()]);
     return val;
-}, 4)
-console.log(blocksJson);
+}, 4));
+console.log(spriteJson);
 
-fs.writeFileSync(path.resolve(__dirname, "./blocks.json"), blocksJson, "utf8");
+fs.writeFileSync(path.resolve(__dirname, "./blocks.json"), JSON.stringify(spriteJson, undefined, 4), "utf8");
+
+const projectJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "./proj/project.json"), "utf8"));
+projectJson.targets[0] = {
+    ...projectJson.targets[0],
+    ...spriteJson
+};
+fs.writeFileSync(path.resolve(__dirname, "./proj/project.json"), JSON.stringify(projectJson), "utf8");
+
+const zip = new JSZip;
+const files = fs.readdirSync(path.resolve(__dirname, "./proj"));
+for (const file of files) {
+    zip.file(file, fs.readFileSync(path.resolve(__dirname, "./proj/", file), "utf8"));
+}
+zip.generateAsync({ type: "nodebuffer" }).then(content => {
+    fs.writeFileSync(path.resolve(__dirname, "./proj-out.sb3"), content);
+});
 
 const compilerErrors = errorCollector.getErrors();
 console.log("\n\n");

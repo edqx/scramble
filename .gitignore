@@ -161,3 +161,6 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/yarn,node
 
 z
+test
+!./test/test.ts
+!./test/test.sc

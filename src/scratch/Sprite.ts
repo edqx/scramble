@@ -52,6 +52,9 @@ export class Sprite {
 
     applyStack(stack: Stack, hatBlock?: Block) {
         let last: Block|undefined = hatBlock;
+        if (hatBlock !== undefined) {
+            this.blocks.set(hatBlock.id, hatBlock);
+        }
         for (const block of stack.orderedStackBlocks) {
             if (last !== undefined) {
                 last.setNextId(block.id);

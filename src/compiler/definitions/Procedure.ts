@@ -1,5 +1,5 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
 import { Block, BlockRef, ListDefinition, NumberValue, Shadowed, StringValue, Value, VariableDefinition, VariableValue } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
@@ -8,11 +8,11 @@ import { staticallyAnalyseExpressionDeclaration } from "../analysis";
 import { inferExpressionType } from "../inferExpressionType";
 import { getProcedureSignature, resolveSymbolType } from "../resolveSymbolType";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
-import { ClassInstanceType, PrimitiveType, Type } from "../types";
+import { ClassInstanceType, Type } from "../types";
 import { ClassSymbol } from "./Class";
 import { MacroSymbol } from "./Macro";
 import { ParameterSymbol } from "./Parameter";
-import { CodeSymbol, ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
+import { ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
 import { VariableSymbol } from "./Variable";
 
 export class ParameterDefinition {
@@ -80,7 +80,9 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             {},
             {
                 VALUE: [ name, null ]
-            }
+            },
+            true,
+            false
         );
     }
 
@@ -663,9 +665,9 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             parameterDefinition.block.setParentId(procedurePrototype.id);
         }
         const procedureDefinition = this.createProcedureDefinitionBlock(uniqueIds, procedurePrototype);
+        procedurePrototype.setParentId(procedureDefinition.id);
 
         stack.subBlocks.push(procedurePrototype);
-        stack.orderedStackBlocks.unshift(procedureDefinition); // proc definition always at top
 
         this.generateBlocksForCodeBlock(uniqueIds, this.expression.block, parameterVariables, existingTypes, stack, errorCollector);
         sprite.applyStack(stack, procedureDefinition);
