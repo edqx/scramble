@@ -58,27 +58,23 @@ export class BroadcastValue extends Value {
 export class VariableValue extends Value {
     constructor(
         public readonly variableName: string,
-        public readonly variableId: string,
-        public readonly x = 0,
-        public readonly y = 0
+        public readonly variableId: string
     ) {
         super(ValueType.Variable);
     }
 
-    getValues(): any[] { return [ this.variableName, this.variableId, this.x, this.y ]; }
+    getValues(): any[] { return [ this.variableName, this.variableId ]; }
 }
 
 export class ListValue extends Value {
     constructor(
         public readonly listName: string,
-        public readonly listId: string,
-        public readonly x = 0,
-        public readonly y = 0
+        public readonly listId: string
     ) {
         super(ValueType.List);
     }
 
-    getValues(): any[] { return [ this.listName, this.listId, this.x, this.y ]; }
+    getValues(): any[] { return [ this.listName, this.listId ]; }
 }
 
 export abstract class FieldValue {

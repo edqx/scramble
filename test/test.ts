@@ -51,7 +51,7 @@ const existingTypes = new ExistingTypes;
 const sprite = new Sprite;
 for (const [ , symbol ] of scriptWrapper.symbols) {
     if (symbol instanceof ProcedureSymbol) {
-        symbol.generateBlocks(idGenerator, existingTypes, sprite, errorCollector);
+        symbol.generateBlocksForSprite(idGenerator, existingTypes, sprite, errorCollector);
     }
 }
 const spriteJson = JSON.parse(JSON.stringify(sprite, (key, val) => {

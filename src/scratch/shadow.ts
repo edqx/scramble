@@ -27,7 +27,7 @@ export class Shadowed {
     }
 
     toJSON() {
-        if (this.base !== undefined && this.overlay !== undefined) return [ ShadowState.HasBlockShadow, this.base, this.overlay ];
+        if (this.base !== undefined && this.overlay !== undefined) return [ ShadowState.HasBlockShadow, this.overlay, this.base ];
         if (this.base === undefined) return [ ShadowState.HasShadow, this.overlay!.toJSON() ];
         if (this.overlay === undefined) return [ ShadowState.HasBlock, this.base.toJSON() ];
 

@@ -57,6 +57,18 @@ export function staticallyAnalyseExpression(
         }
 
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.value, symbolTransformer, symbols, errorCollector);
+    } else if (expression instanceof VariableDeclarationExpression) {
+        const reference = parentScope.getIdentifierReference(expression.identifier);
+        if (reference === undefined) throw new Error(`Could not find reference '${expression.identifier}'`);
+
+        symbolTransformer?.(reference);
+
+        if (reference instanceof ParameterSymbol) {
+            reference.flags.add(SymbolFlag.ParamReassigned);
+        }
+        
+        staticallyAnalyseExpression(parentScope, scopeTraversal, expression.initialValue
+            , symbolTransformer, symbols, errorCollector);
     } else if (expression instanceof ClassDeclarationExpression) {
         for (const method of expression.methods) {
             staticallyAnalyseExpression(parentScope, scopeTraversal, method, symbolTransformer, symbols, errorCollector);
@@ -94,7 +106,7 @@ export function staticallyAnalyseExpression(
 
         if (!reference.flags.has(SymbolFlag.Hoisted) && !scopeTraversal.has(reference.expression))
             throw new Error(`Reference not declared '${expression.keyword}'`);
-            
+
         if (reference instanceof ProcedureSymbol) {
             reference.flags.add(SymbolFlag.ProcUsedAsValue);
         }
