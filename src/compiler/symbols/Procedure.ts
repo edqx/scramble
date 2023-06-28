@@ -296,9 +296,11 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
             const broadcastCompleted = stack.sprite.createGlobal("completed-proxy", () => stack.sprite.createVariable(uniqueIds.nextId(), "$completed"));
             stack.orderedStackBlocks.push(...broadcastCompleted.generateSetValueAtOffset(uniqueIds, new NumberValue(0), 0));
-            
+
+            const broadcastRefInput = broadcastReferenceValue.generateInputAtOffset(uniqueIds, 0);
+            if (broadcastRefInput instanceof BlockRef) broadcastRefInput.block.shadow = false; // force shadow for broadcast input block
             const broadcastBlock = new Block(uniqueIds.nextId(), "event_broadcast", {
-                BROADCAST_INPUT: new Shadowed(new BroadcastValue("", ""), broadcastReferenceValue.generateInputAtOffset(uniqueIds, 0))
+                BROADCAST_INPUT: new Shadowed(new BroadcastValue("", ""), broadcastRefInput)
             });
             stack.orderedStackBlocks.push(broadcastBlock);
 
