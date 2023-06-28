@@ -54,6 +54,5 @@ export function resolveTypeName(
         return existingTypes.getOrCreateTypeForSymbol(typeSymbol, new ClassInstanceType(typeSymbol, fields, methods));
     }
 
-    console.log(type);
     throw new Error(`Invalid type reference '${type}'`);
 }

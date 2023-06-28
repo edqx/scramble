@@ -34,7 +34,7 @@ export class ListDefinition extends Definition {
         );
     }
 
-    generateIntantiation(uniqueIds: IdGenerator, values: BlockInput[]): Block[] {
+    generateIntantiation(uniqueIds: IdGenerator, values: BlockInput[], requireValues = true): Block[] {
         const blocks = [];
         blocks.push(
             new Block(
@@ -45,7 +45,10 @@ export class ListDefinition extends Definition {
             )
         );
         for (let i = 0; i < this.size; i++) {
-            if (values[i] === undefined) throw new Error("Assertion failed; not enough values");
+            if (values[i] === undefined) {
+                if (requireValues) throw new Error("Assertion failed; not enough values");
+                break;
+            }
             const block = new Block(
                 uniqueIds.nextId(),
                 "data_addtolist",

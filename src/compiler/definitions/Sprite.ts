@@ -1,4 +1,6 @@
 import { Block, BlockRef } from "../../scratch";
+import { BroadcastDefinition } from "./Broadcast";
+import { Definition } from "./Definition";
 import { ListDefinition } from "./List";
 import { VariableDefinition } from "./Variable";
 
@@ -17,10 +19,10 @@ export class Stack {
 export class Sprite {
     variables: Map<string, VariableDefinition>;
     lists: Map<string, ListDefinition>;
-    broadcasts: Map<string, [ string, string ]>;
+    broadcasts: Map<string, BroadcastDefinition>;
     blocks: Map<string, Block>;
 
-    globals: Map<string, string>;
+    globals: Map<string, ListDefinition|VariableDefinition>;
 
     constructor() {
         this.variables = new Map;
@@ -31,24 +33,29 @@ export class Sprite {
         this.globals = new Map;
     }
 
-    createGlobal(name: string, id: string) {
-        this.globals.set(id, name);
+    createGlobal<T extends ListDefinition|VariableDefinition>(name: string, creator: () => T) {
+        const existingGlobal = this.globals.get(name);
+        if (existingGlobal !== undefined) return existingGlobal as T;
+
+        const newGlobal = creator();
+        this.globals.set(name, newGlobal);
+        return newGlobal;
     }
     
     createVariable(id: string, name: string) {
-        const variable = new VariableDefinition(id, name);
+        const variable = new VariableDefinition(name, id);
         this.variables.set(id, variable);
         return variable;
     }
     
     createList(id: string, name: string, size: number) {
-        const list = new ListDefinition(id, name, 0, size);
+        const list = new ListDefinition(name, id, 0, size);
         this.lists.set(id, list);
         return list;
     }
     
     createBroadcast(id: string, name: string) {
-        const broadcast: [ string, string ] = [ id, name ];
+        const broadcast = new BroadcastDefinition(name, id);
         this.broadcasts.set(id, broadcast);
         return broadcast;
     }
@@ -62,9 +69,11 @@ export class Sprite {
         for (const [ , input ] of inputs) {
             if (input.base instanceof BlockRef) {
                 this.blocks.set(input.base.block.id, input.base.block);
+                this._applySubBlocks(input.base.block);
             }
             if (input.overlay instanceof BlockRef) {
                 this.blocks.set(input.overlay.block.id, input.overlay.block);
+                this._applySubBlocks(input.overlay.block);
             }
         }
     }

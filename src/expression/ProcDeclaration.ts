@@ -48,7 +48,6 @@ export class ProcDeclarationExpression extends Expression {
     static readCodeBlock(procKeywordToken: KeywordToken, lastExpression: Expression, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
         tokenReader.moveNextWhile(match => match instanceof NewlineToken);
         const blockToken = tokenReader.getNextToken();
-        console.log(blockToken);
         if (blockToken instanceof KeywordToken) {
             if (blockToken.keyword === "return") {
                 ReturnStatementExpression.read(blockToken, astCollector, tokenReader, errorCollector);

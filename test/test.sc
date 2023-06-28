@@ -1,19 +1,26 @@
-class Vector2 {
-    x: number;
-    y: number;
+type NumberPipelineFunction = proc(a: number, b: number) -> number;
+
+class FunctionPipeline {
+    p1: NumberPipelineFunction;
+    p2: NumberPipelineFunction;
+    p3: NumberPipelineFunction;
 }
 
-class Positioning {
-    position: Vector2;
-    velocity: Vector2;
+proc sumPipeline(a: number, b: number, pipeline: FunctionPipeline) {
+    return pipeline.p1(a, b) + pipeline.p2(a, b) + pipeline.p3(a, b);
 }
 
-class Person {
-    name: string;
-    positioning: Positioning;
-    age: number;
+proc add(a: number, b: number) {
+    return a + b;
+}
+proc mul(a: number, b: number) {
+    return a * b;
+}
+proc div(a: number, b: number) {
+    return a / b;
 }
 
-proc killPerson(person: Person) {
-    person.positioning.velocity = Vector2{ x = 4; y = 2; };
+proc main() {
+    var res = sumPipeline(4, 5, FunctionPipeline{ p1 = add; p2 = mul; p3 = div; });
 }
+

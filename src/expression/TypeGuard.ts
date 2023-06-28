@@ -31,7 +31,6 @@ export class TypeGuardExpression extends Expression {
         }
         const right = astCollector.popLastExpression()!;
         const left = astCollector.popLastExpression()!;
-        console.log(left, ":", right);
         if (!(left instanceof KeywordExpression)) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.InvalidLeftHandSideReference)

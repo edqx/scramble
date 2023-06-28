@@ -43,16 +43,24 @@ export class CompositeDefinition extends Definition {
         const field = this.type.fields.get(property);
         if (field === undefined) return undefined;
 
-        if (field.type.size === 1) {
-            let offset = 0;
-            for (let i = 0; i < this.components.length; i++) {
-                if (field.offset === offset) {
-                    return new CompositeDefinition(field.type, [ this.components[i] ]);
-                }
-                offset += field.type.size;
-            }
-            return undefined;
-        }
+        // if (field.type.size === 1) {
+        //     let offset = 0;
+        //     for (let i = 0; i < this.components.length; i++) {
+        //         const component = this.components[i];
+        //         if (field.offset === offset) {
+        //             if (component.size !== 1) {
+        //                 if (component instanceof ListDefinition) {
+        //                     return new ListDefinition(component.name, component.id, component.sliceStart, 1);
+        //                 } else if (component instanceof CompositeDefinition) {
+        //                     return component.
+        //                 }
+        //             }
+        //             return new CompositeDefinition(field.type, [ component ]);
+        //         }
+        //         offset += field.type.size;
+        //     }
+        //     return undefined;
+        // }
 
         const components = [];
         const startFieldOffset = field.offset;
@@ -65,7 +73,6 @@ export class CompositeDefinition extends Definition {
                 if (endFieldOffset <= searchOffset + component.size) {
                     if (component instanceof CompositeDefinition) {
                         const comp = new CompositeDefinition(field.type, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, field.type.size));
-                        console.log(comp);
                         return comp;
                     }
                     return new CompositeDefinition(field.type, [ component ]);
@@ -135,6 +142,7 @@ export class CompositeDefinition extends Definition {
         const blocks = [];
         for (const component of this.components) {
             blocks.push(...component.generateIntantiation(uniqueIds, values));
+            values = values.slice(component.size);
         }
         return blocks;
     }
@@ -160,7 +168,6 @@ export class CompositeDefinition extends Definition {
             const component = this.components[i];
             if (offset >= searchOffset && offset < searchOffset + component.size) {
                 if (endOffset <= searchOffset + component.size) {
-                    console.log("CMP", offset + "-" + endOffset, searchOffset, component);
                     if (component instanceof CompositeDefinition)
                         return component.sliceAtOffsetAndSize(offset - searchOffset, size);
                     if (component instanceof ListDefinition)
