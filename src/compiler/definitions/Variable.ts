@@ -23,12 +23,9 @@ export class VariableDefinition extends Definition {
     }
 
     generateSetValueAtOffset(uniqueIds: IdGenerator, value: BlockInput, offset: number): Block[] {
-        const block = new Block(
-            uniqueIds.nextId(),
-            "data_setvariableto",
-            { VALUE: new Shadowed(undefined, value) },
-            { VARIABLE: [ this.name, this.id ] }
-        );
+        const block = new Block(uniqueIds.nextId(), "data_setvariableto", {
+            VALUE: new Shadowed(undefined, value)
+        }, { VARIABLE: [ this.name, this.id ] });
         return [ block ];
     }
 }

@@ -43,25 +43,6 @@ export class CompositeDefinition extends Definition {
         const field = this.type.fields.get(property);
         if (field === undefined) return undefined;
 
-        // if (field.type.size === 1) {
-        //     let offset = 0;
-        //     for (let i = 0; i < this.components.length; i++) {
-        //         const component = this.components[i];
-        //         if (field.offset === offset) {
-        //             if (component.size !== 1) {
-        //                 if (component instanceof ListDefinition) {
-        //                     return new ListDefinition(component.name, component.id, component.sliceStart, 1);
-        //                 } else if (component instanceof CompositeDefinition) {
-        //                     return component.
-        //                 }
-        //             }
-        //             return new CompositeDefinition(field.type, [ component ]);
-        //         }
-        //         offset += field.type.size;
-        //     }
-        //     return undefined;
-        // }
-
         const components = [];
         const startFieldOffset = field.offset;
         const endFieldOffset = field.offset + field.type.size;
@@ -79,7 +60,7 @@ export class CompositeDefinition extends Definition {
                 }
 
                 if (component instanceof ListDefinition) {
-                    components.push(new ListDefinition(component.name, component.id, searchOffset, component.sliceStart - startFieldOffset + searchOffset));
+                    components.push(component.sliceAtOffset(searchOffset, component.sliceStart - startFieldOffset + searchOffset));
                 } else if (component instanceof CompositeDefinition) {
                     components.push(...component.sliceAtOffsetAndSize(searchOffset, component.size - searchOffset + startFieldOffset));
                 } else {
@@ -94,7 +75,7 @@ export class CompositeDefinition extends Definition {
             const component = this.components[i];
             if (endFieldOffset <= searchOffset + component.size) {
                 if (component instanceof ListDefinition) {
-                    components.push(new ListDefinition(component.name, component.id, 0, component.size - searchOffset + endFieldOffset));
+                    components.push(component.sliceAtOffset(0, component.size - searchOffset + endFieldOffset));
                 } else if (component instanceof CompositeDefinition) {
                     components.push(...component.sliceAtOffsetAndSize(0, component.size - searchOffset + endFieldOffset));
                 } else {
@@ -176,7 +157,7 @@ export class CompositeDefinition extends Definition {
                 }
 
                 if (component instanceof ListDefinition) {
-                    components.push(new ListDefinition(component.name, component.id, offset - searchOffset, component.sliceStart - offset + searchOffset));
+                    components.push(component.sliceAtOffset(offset - searchOffset, component.sliceStart - offset + searchOffset));
                 } else if (component instanceof CompositeDefinition) {
                     components.push(new CompositeDefinition(component.type, component.components));
                 } else {
@@ -191,7 +172,7 @@ export class CompositeDefinition extends Definition {
             const component = this.components[i];
             if (endOffset <= searchOffset + component.size) {
                 if (component instanceof ListDefinition) {
-                    components.push(new ListDefinition(component.name, component.id, searchOffset, component.sliceSize - endOffset + searchOffset));
+                    components.push(component.sliceAtOffset(searchOffset, component.sliceSize - endOffset + searchOffset));
                 } else {
                     components.push(component);
                 }

@@ -7,6 +7,8 @@ class FunctionPipeline {
 }
 
 proc sumPipeline(a: number, b: number, pipeline: FunctionPipeline) {
+    pipeline.p1 = (pipeline.p2 = (pipeline.p3 = mul));
+
     return pipeline.p1(a, b) + pipeline.p2(a, b) + pipeline.p3(a, b);
 }
 

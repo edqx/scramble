@@ -3,7 +3,13 @@ import { IdGenerator } from "../IdGenerator";
 import { Definition } from "./Definition";
 
 export class ListDefinition extends Definition {
-    constructor(public readonly name: string, public readonly id: string, public readonly sliceStart: number, public readonly sliceSize: number) { 
+    constructor(
+        public readonly name: string,
+        public readonly id: string,
+        public readonly sliceStart: number,
+        public readonly sliceSize: number,
+        public readonly isFullSize: boolean
+    ) {
         super(sliceSize);
     }
 
@@ -12,7 +18,7 @@ export class ListDefinition extends Definition {
     }
 
     sliceAtOffset(sliceStart: number, sliceSize: number) {
-        return new ListDefinition(this.name, this.id, this.sliceStart + sliceStart, sliceSize);
+        return new ListDefinition(this.name, this.id, this.sliceStart + sliceStart, sliceSize, sliceStart === 0 && sliceSize === this.sliceSize && this.isFullSize);
     }
 
     generateInputs(uniqueIds: IdGenerator) {
@@ -35,43 +41,45 @@ export class ListDefinition extends Definition {
     }
 
     generateIntantiation(uniqueIds: IdGenerator, values: BlockInput[], requireValues = true): Block[] {
+        if (!this.isFullSize) {
+            const blocks = [];
+            // for (let i = 0; i < this.size; i++) {
+            //     blocks.push(new Block(uniqueIds.nextId(), "data_deleteoflist", {
+            //         INDEX: new Shadowed(undefined, new NumberValue(this.sliceStart + 1))
+            //     }, { LIST: [ this.name, this.id ] }));
+            // }
+            for (let i = 0; i < this.size; i++) {
+                if (values[i] === undefined) {
+                    if (requireValues) throw new Error("Assertion failed; not enough values");
+                    break;
+                }
+                blocks.push(...this.generateSetValueAtOffset(uniqueIds, values[i], i));
+            }
+            return blocks;
+        }
+
         const blocks = [];
-        blocks.push(
-            new Block(
-                uniqueIds.nextId(),
-                "data_deletealloflist",
-                { },
-                { LIST: [ this.name, this.id ] }
-            )
-        );
+        blocks.push(new Block(uniqueIds.nextId(), "data_deletealloflist", { }, {
+            LIST: [ this.name, this.id ]
+        }));
         for (let i = 0; i < this.size; i++) {
             if (values[i] === undefined) {
                 if (requireValues) throw new Error("Assertion failed; not enough values");
                 break;
             }
-            const block = new Block(
-                uniqueIds.nextId(),
-                "data_addtolist",
-                {
-                    ITEM: new Shadowed(undefined, values[i])
-                },
-                { LIST: [ this.name, this.id ] }
-            );
+            const block = new Block(uniqueIds.nextId(), "data_addtolist", {
+                ITEM: new Shadowed(undefined, values[i])
+            }, { LIST: [ this.name, this.id ] });
             blocks.push(block);
         }
         return blocks;
     }
 
     generateSetValueAtOffset(uniqueIds: IdGenerator, value: BlockInput, offset: number): Block[] {
-        const block = new Block(
-            uniqueIds.nextId(),
-            "data_replaceitemoflist",
-            {
-                INDEX: new Shadowed(undefined, new NumberValue(this.sliceStart + offset + 1)),
-                ITEM: new Shadowed(undefined, value)
-            },
-            { LIST: [ this.name, this.id ] }
-        );
+        const block = new Block(uniqueIds.nextId(), "data_replaceitemoflist", {
+            INDEX: new Shadowed(undefined, new NumberValue(this.sliceStart + offset + 1)),
+            ITEM: new Shadowed(undefined, value)
+        }, { LIST: [ this.name, this.id ] });
         return [ block ];
     }
 }

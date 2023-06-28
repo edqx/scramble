@@ -49,7 +49,7 @@ export class Sprite {
     }
     
     createList(id: string, name: string, size: number) {
-        const list = new ListDefinition(name, id, 0, size);
+        const list = new ListDefinition(name, id, 0, size, true);
         this.lists.set(id, list);
         return list;
     }
