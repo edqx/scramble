@@ -1,4 +1,5 @@
 import { ClassSymbol, FieldSymbol, ProcedureSymbol } from "../symbols";
+import { ProcedureSignatureType } from "./ProcedureSignature";
 import { Type } from "./Type";
 
 export class ClassInstanceTypeField {
@@ -12,7 +13,7 @@ export class ClassInstanceTypeField {
 export class ClassInstanceTypeMethod {
     constructor(
         public readonly methodSymbol: ProcedureSymbol,
-        public readonly type: Type
+        public readonly type: ProcedureSignatureType
     ) { }
 }
 

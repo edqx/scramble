@@ -8,7 +8,7 @@ import { parseAst } from "../src/parseAst";
 import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
-import { ProcedureSymbol, SymbolFlag, SymbolType, IdGenerator, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler";
+import { ProcedureSymbol, SymbolFlag, SymbolType, IdGenerator, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration, ClassSymbol, CodeSymbol } from "../src/compiler";
 import { Sprite } from "../src/compiler/definitions/Sprite";
 import { ExistingTypes } from "../src/compiler/ExistingTypes";
 
@@ -36,7 +36,7 @@ const traversal: Set<Expression> = new Set;
 for (const expression of ast.expressions) {
     staticallyAnalyseExpressionDeclaration(scriptWrapper, expression, symbols, errorCollector);
 }
-staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, undefined, symbols, errorCollector);
+staticallyAnalyseBlock(scriptWrapper, traversal, ast.expressions, undefined, 0, symbols, errorCollector);
 
 console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => {
     if (key === "position" || key === "expression" || key === "parent") return undefined;
@@ -49,11 +49,16 @@ console.log(util.inspect(JSON.parse(JSON.stringify(scriptWrapper, (key, val) => 
 
 const existingTypes = new ExistingTypes;
 const sprite = new Sprite;
-for (const [ , symbol ] of scriptWrapper.symbols) {
-    if (symbol instanceof ProcedureSymbol) {
-        symbol.generateBlocks(sprite, idGenerator, existingTypes, errorCollector);
+function generateBlocksForSymbols(symbols: Map<string, CodeSymbol>) {
+    for (const [ , symbol ] of symbols) {
+        if (symbol instanceof ProcedureSymbol) {
+            symbol.generateBlocks(sprite, idGenerator, existingTypes, errorCollector);
+        } else if (symbol instanceof ClassSymbol) {
+            generateBlocksForSymbols(symbol.children);
+        }
     }
 }
+generateBlocksForSymbols(scriptWrapper.symbols);
 const spriteJson = JSON.parse(JSON.stringify(sprite, (key, val) => {
     if (key === "variables" || key === "lists" || key === "broadcasts" || key === "blocks") return Object.fromEntries([...val.entries()]);
     return val;

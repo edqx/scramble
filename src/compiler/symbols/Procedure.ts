@@ -9,12 +9,13 @@ import { SymbolDeclarationStore } from "../symbolDeclarationStore";
 import { ClassSymbol } from "./Class";
 import { MacroSymbol } from "./Macro";
 import { ParameterSymbol } from "./Parameter";
-import { ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
+import { CodeSymbol, ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
 import { Block, BlockInput, BlockRef, BroadcastValue, NumberValue, Shadowed, StringValue, Value } from "../../scratch";
 import { Definition } from "../definitions/Definition";
 import { VariableSymbol } from "./Variable";
 import { inferExpressionType } from "../inferExpressionType";
-import { ClassInstanceType, ProcedureSignatureType, Type } from "../types";
+import { ClassInstanceType, ClassInstanceTypeMethod, ProcedureSignatureType, Type, VoidType } from "../types";
+import { getClassInstanceType, resolveTypeName } from "../resolveTypeName";
 
 export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|ScriptExpression> {
     static analyseDeclaration(
@@ -51,12 +52,23 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         super(id, parent, SymbolType.Procedure, name, expression);
 
         this.flags.add(SymbolFlag.Hoisted);
+
+        if (parent instanceof ClassSymbol) {
+            this.flags.add(SymbolFlag.ProcIsMethod);
+        }
     }
 
     getParameterIds(uniqueIds: IdGenerator, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
         if (this._cachedParameterIds !== undefined) return this._cachedParameterIds;
 
         this._cachedParameterIds = [];
+        if (this.flags.has(SymbolFlag.ProcIsMethod)) {
+            const parent = this.parent as ClassSymbol;
+            const parentType = getClassInstanceType(parent, existingTypes, errorCollector);
+            for (let i = 0; i < parentType.size; i++) {
+                this._cachedParameterIds.push(uniqueIds.nextId());
+            }
+        }
         const signature = getProcedureSignature(this, existingTypes, errorCollector);
         for (const param of signature.params) {
             for (let i = 0; i < param.type.size; i++) {
@@ -83,13 +95,12 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
     }
 
     createDefinitionForType(type: Type, name: string, uniqueIds: IdGenerator, sprite: Sprite) {
-        // if (type.size > 1) {
-        //     const variables = [];
-        //     for (let i = 0; i < type.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), "<-" + this.name + "_" + i));
-        //     const composite = new CompositeDefinition(type, variables);
-        //     this._cachedReturnVariable = composite;
-        //     return composite;
-        // }
+        if (type.size > 1) { // temp?
+            const variables = [];
+            for (let i = 0; i < type.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), "<-" + this.name + "_" + i));
+            const composite = new CompositeDefinition(type, variables);
+            return composite;
+        }
 
         const definition = type.size > 1
             ? sprite.createList(uniqueIds.nextId(), name, type.size)
@@ -112,6 +123,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         structFields: StructFieldsExpression,
         stack: Stack,
         paramRedefinitions: Map<ParameterSymbol, CompositeDefinition>,
+        thisDefinition: Definition|undefined,
         uniqueIds: IdGenerator,
         existingTypes: ExistingTypes,
         errorCollector: ErrorCollector
@@ -126,7 +138,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const valueType = inferExpressionType(structField.value, this, existingTypes, errorCollector);
             if (!valueType.isEquivalentTo(field.type)) throw new Error(`Assertion failed; invalid field type '${field.fieldSymbol.name}`);
             
-            const value = this.traverseAndGenerateBlocksForCodeBlock(structField.value, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const value = this.traverseAndGenerateBlocksForCodeBlock(structField.value, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             if (value === undefined) throw new Error(`Assertion failed; invalid field type '${field.fieldSymbol.name}`);
 
             composite.push(value);
@@ -186,6 +198,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         block: Expression,
         stack: Stack,
         paramRedefinitions: Map<ParameterSymbol, CompositeDefinition>,
+        thisDefinition: Definition|undefined,
         uniqueIds: IdGenerator,
         existingTypes: ExistingTypes,
         errorCollector: ErrorCollector
@@ -194,7 +207,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const substack = stack.sprite.createStack();
             let lastValue: BlockInput|Definition|undefined = undefined;
             for (const expression of block.expressions) {
-                lastValue = this.traverseAndGenerateBlocksForCodeBlock(expression, substack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+                lastValue = this.traverseAndGenerateBlocksForCodeBlock(expression, substack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             }
             stack.applySubstack(substack);
             return lastValue;
@@ -204,10 +217,10 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
             if (!assignmentType.isEquivalentTo(valueType)) throw new Error("Assertion failed; invalid type of expression");
 
-            const assignmentDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.reference, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const assignmentDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.reference, stack, paramRedefinitions, thisDefinition,uniqueIds, existingTypes, errorCollector);
             if (!(assignmentDefinition instanceof Definition)) throw new Error("Assertion failed; invalid assignment reference");
 
-            const valueBlock = this.traverseAndGenerateBlocksForCodeBlock(block.value, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const valueBlock = this.traverseAndGenerateBlocksForCodeBlock(block.value, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             if (valueBlock === undefined) throw new Error("Assertion failed; invalid value");;
 
             this.generateCopyFromTo(assignmentType, valueBlock, assignmentDefinition, stack, uniqueIds);
@@ -222,12 +235,16 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
             const varDefinition = assignmentSymbol.getVarDefinitionReference(stack.sprite, uniqueIds, existingTypes, errorCollector);
 
-            const valueBlock = this.traverseAndGenerateBlocksForCodeBlock(block.initialValue, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const valueBlock = this.traverseAndGenerateBlocksForCodeBlock(block.initialValue, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             if (valueBlock === undefined) throw new Error("Assertion failed; invalid value");;
 
             this.generateCopyFromTo(type, valueBlock, varDefinition, stack, uniqueIds);
             return;
         } else if (block instanceof KeywordExpression) {
+            if (block.keyword === "this") {
+                return thisDefinition;
+            }
+
             const symbol = this.getIdentifierReference(block.keyword);
             if (symbol instanceof ProcedureSymbol) {
                 if (!symbol.flags.has(SymbolFlag.ProcUsedAsValue)) throw new Error("Assertion failed; proc used as value yet has no flag for such - broadcast may not exist");
@@ -252,22 +269,66 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                         const argType = inferExpressionType(block.args[i], this, existingTypes, errorCollector);
                         if (!paramSignature.type.isEquivalentTo(argType)) throw new Error(`Assertion failed; invalid param ${i}`);
 
-                        const argBlock = this.traverseAndGenerateBlocksForCodeBlock(block.args[i], stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+                        const argBlock = this.traverseAndGenerateBlocksForCodeBlock(block.args[i], stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
                         if (argBlock === undefined) throw new Error(`Assertion failed; invalid param ${i}`);
                         paramInputs.push(...argBlock.generateInputs(uniqueIds));
                     }
                     
                     const callBlock = immediateSymbol.createProcedureCallBlock(paramInputs, uniqueIds, existingTypes, errorCollector);
                     stack.orderedStackBlocks.push(callBlock);
+                    
+                    if (procedureSignature.returnType.isEquivalentTo(VoidType.DEFINITION)) return;
 
                     const returnValueReference = immediateSymbol.getOrCreateReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
                     const auxReturn = this.createDefinitionForType(procedureSignature.returnType, uniqueIds.nextId(), uniqueIds, stack.sprite);
                     this.generateCopyFromTo(procedureSignature.returnType, returnValueReference, auxReturn, stack, uniqueIds);
                     return auxReturn;
                 }
+            } else if (block.reference instanceof AccessorExpression) {
+                const baseType = inferExpressionType(block.reference.base, this, existingTypes, errorCollector);
+                if (baseType === undefined || !(baseType instanceof ClassInstanceType)) throw new Error("Assertion failed; base not accessible by property");
+                const baseDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.reference.base, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+                if (baseDefinition === undefined) throw new Error("Assertion failed; cannot generate definition for base");
+                const methodType = baseType.methods.get(block.reference.property.keyword);
+                if (methodType !== undefined) {
+                    if (!methodType.methodSymbol.flags.has(SymbolFlag.ProcIsMethod))
+                        throw new Error("Assertion failed; function called on object but is not flagged as a method in a class");
+
+                    const paramInputs: BlockInput[] = [];
+                    const procedureSignature = getProcedureSignature(methodType.methodSymbol, existingTypes, errorCollector);
+                    const parentType = getClassInstanceType(methodType.methodSymbol.parent as ClassSymbol, existingTypes, errorCollector);
+                    if (parentType === undefined || !(parentType instanceof ClassInstanceType)) throw new Error("Assertion failed; parent of method not of class instance type");
+                    if (!baseType.isEquivalentTo(parentType)) throw new Error("Assertion failed; reference is wrong type for procedure");
+
+                    paramInputs.push(...baseDefinition.generateInputs(uniqueIds));
+                    for (let i = 0; i < block.args.length; i++) {
+                        const paramSignature = procedureSignature.params[i];
+                        const argType = inferExpressionType(block.args[i], this, existingTypes, errorCollector);
+                        if (!paramSignature.type.isEquivalentTo(argType)) throw new Error(`Assertion failed; invalid param ${i}`);
+
+                        const argBlock = this.traverseAndGenerateBlocksForCodeBlock(block.args[i], stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+                        if (argBlock === undefined) throw new Error(`Assertion failed; invalid param ${i}`);
+                        paramInputs.push(...argBlock.generateInputs(uniqueIds));
+                    }
+                    
+                    const callBlock = methodType.methodSymbol.createProcedureCallBlock(paramInputs, uniqueIds, existingTypes, errorCollector);
+                    stack.orderedStackBlocks.push(callBlock);
+
+                    if (procedureSignature.functionSymbol!.flags.has(SymbolFlag.MethodThisReassigned)) {
+                        const mutatedThisDefinition = parentType.classSymbol.getMutatedThisDefinitionReference(stack.sprite, uniqueIds, existingTypes, errorCollector);
+                        this.generateCopyFromTo(parentType, mutatedThisDefinition, baseDefinition, stack, uniqueIds);
+                    }
+
+                    if (methodType.type.returnType.isEquivalentTo(VoidType.DEFINITION)) return;
+
+                    const returnValueReference = methodType.methodSymbol.getOrCreateReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
+                    const auxReturn = this.createDefinitionForType(procedureSignature.returnType, uniqueIds.nextId(), uniqueIds, stack.sprite);
+                    this.generateCopyFromTo(procedureSignature.returnType, returnValueReference, auxReturn, stack, uniqueIds);
+                    return auxReturn;
+                }
             }
 
-            const broadcastReferenceValue = this.traverseAndGenerateBlocksForCodeBlock(block.reference, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const broadcastReferenceValue = this.traverseAndGenerateBlocksForCodeBlock(block.reference, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             const referenceType = inferExpressionType(block.reference, this, existingTypes, errorCollector);
             if (broadcastReferenceValue === undefined || !(referenceType instanceof ProcedureSignatureType))
                 throw new Error("Assertion failed; reference is not a function to call");
@@ -279,13 +340,34 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const globalReturnProxy = globalReturnProxyFull.sliceAtOffset(0, referenceType.returnType.size);
             
             const args: BlockInput[] = [];
+            let methodCallBaseDefinition: Definition|undefined = undefined;
+            let methodCallBaseType: ClassInstanceType|undefined = undefined;
+            if (referenceType.functionSymbol?.flags.has(SymbolFlag.ProcIsMethod)) {
+                if (block.reference instanceof AccessorExpression) {
+                    const baseType = inferExpressionType(block.reference.base, this, existingTypes, errorCollector);
+                    if (baseType instanceof ClassInstanceType) {
+                        const callMethod = baseType.methods.get(block.reference.property.keyword);
+                        if (callMethod !== undefined) {
+                            methodCallBaseDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.reference.base, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+                            methodCallBaseType = baseType;
+                            if (methodCallBaseDefinition === undefined) throw new Error("Assertion failed; reference is not an object");
+
+                            const parentType = getClassInstanceType(callMethod.methodSymbol.parent as ClassSymbol, existingTypes, errorCollector);
+                            if (parentType === undefined || !(parentType instanceof ClassInstanceType)) throw new Error("Assertion failed; parent of method not of class instance type");
+                            if (!baseType.isEquivalentTo(parentType)) throw new Error("Assertion failed; reference is wrong type for procedure");
+    
+                            args.push(...methodCallBaseDefinition.generateInputs(uniqueIds));
+                        }
+                    }
+                }
+            }
             let offset = 0;
             for (let i = 0; i < block.args.length; i++) {
                 const paramSignature = referenceType.params[i];
                 const argType = inferExpressionType(block.args[i], this, existingTypes, errorCollector);
                 if (!paramSignature.type.isEquivalentTo(argType)) throw new Error(`Assertion failed; invalid param ${i}`);
 
-                const argBlock = this.traverseAndGenerateBlocksForCodeBlock(block.args[i], stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+                const argBlock = this.traverseAndGenerateBlocksForCodeBlock(block.args[i], stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
                 if (argBlock === undefined) throw new Error(`Assertion failed; invalid param ${i}`);
 
                 args.push(...argBlock.generateInputs(uniqueIds));
@@ -324,6 +406,13 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             stack.sprite.applyStack(whileStack);
             stack.orderedStackBlocks.push(repeatUntil);
 
+            if (methodCallBaseDefinition !== undefined && methodCallBaseType !== undefined && methodCallBaseType.classSymbol.flags.has(SymbolFlag.MethodThisReassigned)) {
+                const mutatedThisDefinition = methodCallBaseType.classSymbol.getMutatedThisDefinitionReference(stack.sprite, uniqueIds, existingTypes, errorCollector);
+                this.generateCopyFromTo(methodCallBaseType, mutatedThisDefinition, methodCallBaseDefinition, stack, uniqueIds);
+            }
+
+            if (referenceType.returnType.isEquivalentTo(VoidType.DEFINITION)) return;
+
             const auxReturn = this.createDefinitionForType(referenceType.returnType, uniqueIds.nextId(), uniqueIds, stack.sprite);
             this.generateCopyFromTo(referenceType.returnType, globalReturnProxy, auxReturn, stack, uniqueIds);
             return auxReturn;
@@ -335,7 +424,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             if (!procSignature.returnType.isEquivalentTo(expressionSignature)) throw new Error(`Assertion failed; invalid return value`);
 
             const returnValueDefinition = this.getOrCreateReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
-            const expressionDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.expression, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const expressionDefinition = this.traverseAndGenerateBlocksForCodeBlock(block.expression, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             if (expressionDefinition === undefined) throw new Error(`Assertion failed; invalid return value`);
             this.generateCopyFromTo(procSignature.returnType, expressionDefinition, returnValueDefinition, stack, uniqueIds);
             return;
@@ -343,8 +432,15 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const baseType = inferExpressionType(block.base, this, existingTypes, errorCollector);
             if (!(baseType instanceof ClassInstanceType)) throw new Error("Assertion failed; type has no properties");
             
-            const base = this.traverseAndGenerateBlocksForCodeBlock(block.base, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const base = this.traverseAndGenerateBlocksForCodeBlock(block.base, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
             if (!(base instanceof Definition)) throw new Error("Assertion failed; type has no properties");
+
+            const method = baseType.methods.get(block.property.keyword);
+            if (method !== undefined) {
+                if (!method.methodSymbol.flags.has(SymbolFlag.ProcUsedAsValue)) throw new Error("Assertion failed; proc used as value yet has no flag for such - broadcast may not exist");
+                const broadcastReference = method.methodSymbol.getOrCreateBroadcastReference(uniqueIds);
+                return new PresetDefinition(new StringValue(broadcastReference.name));
+            }
 
             const compositeDefinition = new CompositeDefinition(baseType, [ base ]);
             return compositeDefinition.narrowCompositeToProperty(block.property.keyword);
@@ -352,10 +448,10 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const structType = inferExpressionType(block, this, existingTypes, errorCollector);
             if (!(structType instanceof ClassInstanceType)) throw new Error("Assertion failed; type cannot be instantiated as struct");
 
-            return this.definePresetForTypeStructInstantiationImpl(structType, block, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            return this.definePresetForTypeStructInstantiationImpl(structType, block, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
         } else if (block instanceof OperatorExpression) {
-            const leftBlock = this.traverseAndGenerateBlocksForCodeBlock(block.left, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
-            const rightBlock = this.traverseAndGenerateBlocksForCodeBlock(block.right, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            const leftBlock = this.traverseAndGenerateBlocksForCodeBlock(block.left, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+            const rightBlock = this.traverseAndGenerateBlocksForCodeBlock(block.right, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
 
             if (leftBlock === undefined) throw new Error("Assertion failed; invalid left-hand operand");
             if (rightBlock === undefined) throw new Error("Assertion failed; invalid right-hand operand");
@@ -379,6 +475,23 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         const stack = sprite.createStack();
         const paramDefinitions: ParameterDefinition[] = [];
         const paramRedefinitions: Map<ParameterSymbol, CompositeDefinition> = new Map;
+        let thisDefinition: Definition|undefined = undefined;
+        if (this.flags.has(SymbolFlag.ProcIsMethod)) {
+            if (!(this.parent instanceof ClassSymbol)) throw new Error("Assertion failed; got proc is method but parent is not class");
+            const parentType = getClassInstanceType(this.parent, existingTypes, errorCollector);
+            if (parentType === undefined || !(parentType instanceof ClassInstanceType)) throw new Error("Assertion failed; parent of method not of class instance type");
+            const thisParam = ParameterDefinition.defineParametersForType("this", parentType, uniqueIds);
+            paramDefinitions.push(...thisParam.deepTraverseComponents() as ParameterDefinition[]);
+
+            if (this.flags.has(SymbolFlag.MethodThisReassigned)) {
+                thisDefinition = this.parent.getMutatedThisDefinitionReference(sprite, uniqueIds, existingTypes, errorCollector);
+                const getValues = thisParam.generateInputs(uniqueIds);
+                const setValue = thisDefinition.generateIntantiation(uniqueIds, getValues);
+                stack.orderedStackBlocks.push(...setValue);
+            } else {
+                thisDefinition = thisParam;
+            }
+        }
         for (const param of procType.params) {
             if (param.parameterSymbol === undefined) throw new Error("Assertion failed; cannot generate blocks for parameter type declaration");
             const params = ParameterDefinition.defineParametersForType(param.parameterSymbol.name, param.type, uniqueIds);
@@ -446,7 +559,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             sprite.applyStack(stack, broadcastHat);
         }
 
-        this.traverseAndGenerateBlocksForCodeBlock(this.expression.block, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+        this.traverseAndGenerateBlocksForCodeBlock(this.expression.block, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
 
         sprite.applyStack(stack, definitionBlock);
         // console.log(sprite.blocks);
