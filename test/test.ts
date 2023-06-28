@@ -9,7 +9,7 @@ import { TokenReader } from "../src/tokenReader";
 import { Expression, ExpressionKind, ScriptExpression } from "../src/expression";
 import { ErrorCollector } from "../src/errorCollector";
 import { ProcedureSymbol, SymbolFlag, SymbolType, IdGenerator, SymbolDeclarationStore, staticallyAnalyseBlock, staticallyAnalyseExpressionDeclaration } from "../src/compiler";
-import { Sprite } from "../src/scratch/Sprite";
+import { Sprite } from "../src/compiler/definitions/Sprite";
 import { ExistingTypes } from "../src/compiler/ExistingTypes";
 
 const errorCollector = new ErrorCollector;
@@ -51,14 +51,14 @@ const existingTypes = new ExistingTypes;
 const sprite = new Sprite;
 for (const [ , symbol ] of scriptWrapper.symbols) {
     if (symbol instanceof ProcedureSymbol) {
-        symbol.generateBlocksForSprite(idGenerator, existingTypes, sprite, errorCollector);
+        symbol.generateBlocks(sprite, idGenerator, existingTypes, errorCollector);
     }
 }
 const spriteJson = JSON.parse(JSON.stringify(sprite, (key, val) => {
     if (key === "variables" || key === "lists" || key === "broadcasts" || key === "blocks") return Object.fromEntries([...val.entries()]);
     return val;
 }, 4));
-console.log(spriteJson);
+// console.log(spriteJson);
 
 fs.writeFileSync(path.resolve(__dirname, "./blocks.json"), JSON.stringify(spriteJson, undefined, 4), "utf8");
 

@@ -3,17 +3,17 @@ class Vector2 {
     y: number;
 }
 
+class Positioning {
+    position: Vector2;
+    velocity: Vector2;
+}
+
 class Person {
     name: string;
-    position: Vector2;
+    positioning: Positioning;
     age: number;
 }
 
-proc sayHello(person: Person) {
-    let hello = person;
-}
-
-proc main() {
-    var person = Person{ name="Edward"; position=Vector2{ x=0; y=0; }; age = 18; };
-    sayHello(person);
+proc killPerson(person: Person) {
+    person.positioning.velocity = Vector2{ x = 4; y = 2; };
 }

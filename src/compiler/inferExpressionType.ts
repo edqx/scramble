@@ -2,7 +2,7 @@ import { CompilerError, ErrorCode } from "../error";
 import { ErrorCollector } from "../errorCollector";
 import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, StringExpression, StructFieldsExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
-import { ClassSymbol, MacroSymbol, ScopedSymbol } from "./definitions";
+import { ClassSymbol, MacroSymbol, ScopedSymbol } from "./symbols";
 import { resolveSymbolType } from "./resolveSymbolType";
 import { resolveTypeName } from "./resolveTypeName";
 import { ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, VoidType } from "./types";

@@ -1,7 +1,7 @@
 import { ClassDeclarationExpression, Expression, MacroDeclarationExpression, ParameterDeclarationExpression, ProcDeclarationExpression, TypeAliasDeclarationExpression, TypeGuardExpression, VariableDeclarationExpression } from "../expression";
 import { IdGenerator } from "./IdGenerator";
-import { ClassSymbol, CodeSymbol, FieldSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, VariableSymbol } from "./definitions";
-import { TypeAliasSymbol } from "./definitions/TypeAlias";
+import { ClassSymbol, CodeSymbol, FieldSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, VariableSymbol } from "./symbols";
+import { TypeAliasSymbol } from "./symbols/TypeAlias";
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%()*+,-./:;=?@[]^_\\`{|}~";
 export class SymbolDeclarationStore {

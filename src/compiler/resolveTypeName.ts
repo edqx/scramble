@@ -1,7 +1,7 @@
 import { ErrorCollector } from "../errorCollector";
 import { KeywordExpression, ProcDeclarationExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
-import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbol } from "./definitions";
+import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbol } from "./symbols";
 import { getProcedureSignature } from "./resolveSymbolType";
 import { ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, VoidType } from "./types";
 
@@ -54,5 +54,6 @@ export function resolveTypeName(
         return existingTypes.getOrCreateTypeForSymbol(typeSymbol, new ClassInstanceType(typeSymbol, fields, methods));
     }
 
+    console.log(type);
     throw new Error(`Invalid type reference '${type}'`);
 }

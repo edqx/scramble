@@ -7,11 +7,11 @@ export class Block {
     constructor(
         public readonly id: string,
         public readonly opcode: string,
-        public readonly inputs: Record<string, Shadowed> = {},
-        public readonly fields: Record<string, [ string, string|null ]> = {},
-        public readonly shadow = false,
-        public readonly topLevel = false,
-        public readonly mutation: Record<string, any>|undefined = undefined
+        public inputs: Record<string, Shadowed> = {},
+        public fields: Record<string, [ string, string|null ]> = {},
+        public shadow = false,
+        public topLevel = false,
+        public mutation: Record<string, any>|undefined = undefined
     ) {}
 
     setParentId(parentId: string) {

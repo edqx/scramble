@@ -1,6 +1,6 @@
 import { ErrorCollector } from "../errorCollector";
 import { AccessorExpression, AssignmentExpression, ClassDeclarationExpression, Expression, FunctionCallExpression, IfStatementExpression, KeywordExpression, MacroDeclarationExpression, NumberExpression, OperatorExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, StructFieldsExpression, TypeAliasDeclarationExpression, TypeGuardExpression, UnaryOperatorExpression, VariableDeclarationExpression, WhileStatementExpression } from "../expression";
-import { ClassSymbol, CodeSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, SymbolFlag, TypeAliasSymbol, VariableSymbol } from "./definitions";
+import { ClassSymbol, CodeSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, SymbolFlag, TypeAliasSymbol, VariableSymbol } from "./symbols";
 import { SymbolDeclarationStore } from "./symbolDeclarationStore";
 
 export function staticallyAnalyseExpressionDeclaration(
@@ -94,6 +94,9 @@ export function staticallyAnalyseExpression(
         } else {
             staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbolTransformer, symbols, errorCollector);
         }
+        for (const arg of expression.args) {
+            staticallyAnalyseExpression(parentScope, scopeTraversal, arg, symbolTransformer, symbols, errorCollector);
+        }
     } else if (expression instanceof IfStatementExpression) {
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.condition, symbolTransformer, symbols, errorCollector);
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.block, symbolTransformer, symbols, errorCollector);
@@ -158,6 +161,9 @@ export function staticallyAnalyseExpression(
     } else if (expression instanceof StringExpression) {
         // no-op
     } else if (expression instanceof StructFieldsExpression) {
+        for (const assignment of expression.assignments) {
+            staticallyAnalyseExpression(parentScope, scopeTraversal, assignment.value, symbolTransformer, symbols, errorCollector);
+        }
         // todo: check fields
     } else if (expression instanceof TypeGuardExpression) {
         // todo: check reference & type

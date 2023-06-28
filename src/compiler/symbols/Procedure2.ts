@@ -1,9 +1,9 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { AccessorExpression, AssignmentExpression, Expression, FunctionCallExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
 import { Block, BlockRef, BroadcastDefinition, BroadcastValue, ListDefinition, NumberValue, Shadowed, StringValue, Value, ValueType, VariableDefinition, VariableValue } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { Sprite, Stack } from "../../scratch/Sprite";
+import { Sprite, Stack } from "../definitions/Sprite";
 import { staticallyAnalyseExpressionDeclaration } from "../analysis";
 import { inferExpressionType } from "../inferExpressionType";
 import { getProcedureSignature, resolveSymbolType } from "../resolveSymbolType";
@@ -24,7 +24,7 @@ export class SubListDefinition {
 }
 
 export type PossibleParameterRedefinition = VariableDefinition|ListDefinition|ParameterDefinition|ParameterDefinition[];
-export type PossibleReference = Stack|Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[]|undefined;
+export type PossibleReference = BlockRef|Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[]|undefined;
 
 export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|ScriptExpression> {
     static analyseDeclaration(
@@ -64,7 +64,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         this.flags.add(SymbolFlag.Hoisted);
     }
 
-    getReturnValueReference(uniqueIds: IdGenerator, existingTypes: ExistingTypes, errorCollector: ErrorCollector, sprite: Sprite) {
+    getReturnValueReference(uniqueIds: IdGenerator, existingTypes: ExistingTypes, sprite: Sprite, errorCollector: ErrorCollector) {
         if (this._cachedReturnVariable !== undefined) return this._cachedReturnVariable;
 
         const typeSignature = getProcedureSignature(this, existingTypes, errorCollector);
@@ -107,14 +107,6 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         const signature = getProcedureSignature(this, existingTypes, errorCollector);
         this._cachedBroadcastProxy = sprite.createBroadcast(uniqueIds.nextId(), "@" + signature.functionSymbol!.name);
         return this._cachedBroadcastProxy;
-    }
-
-    getBroadcastProxyParamsReference(uniqueIds: IdGenerator, existingTypes: ExistingTypes, sprite: Sprite, errorCollector: ErrorCollector) {
-        if (this._cachedBroadcastProxyParams !== undefined) return this._cachedBroadcastProxyParams;
-
-        const signature = getProcedureSignature(this, existingTypes, errorCollector);
-        this._cachedBroadcastProxyParams = sprite.createList(uniqueIds.nextId(), "@" + signature.functionSymbol!.name + "#args");
-        return this._cachedBroadcastProxyParams;
     }
 
     createParameterReferenceBlock(uniqueIds: IdGenerator, name: string) {
@@ -245,7 +237,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
     recursiveArgumentsCreateReferenceBlocks(
         uniqueIds: IdGenerator,
         argumentTypes: Type[],
-        argumentReferences: (Value|ListDefinition|VariableDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[])[],
+        argumentReferences: PossibleReference[],
         argumentReferenceBlocks: (Value|BlockRef)[],
         stack: Stack
     ) {
@@ -297,7 +289,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                             const listItemReference = new Block(
                                 uniqueIds.nextId(),
                                 "data_itemoflist",
-                                { INDEX: new Shadowed(undefined, new NumberValue(1)) },
+                                { INDEX: new Shadowed(undefined, new NumberValue(i + 1)) },
                                 { LIST: [ argumentReference.name, argumentReference.id ] }
                             );
                             stack.subBlocks.push(listItemReference);
@@ -315,14 +307,57 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         }
     }
 
-    generateProcedureBroadcastProxyBlocksForSprite(uniqueIds: IdGenerator, parameterIds: string[], existingTypes: ExistingTypes, stack: Stack, errorCollector: ErrorCollector) {
+    getOrCreateGlobalBroadcastProxyArgs(uniqueIds: IdGenerator, sprite: Sprite) {
+        const globalDefinitionId = sprite.globals.get("broadcast-proxy-args");
+        if (globalDefinitionId !== undefined) {
+            const listDefinition = sprite.lists.get(globalDefinitionId);
+            if (listDefinition !== undefined) return listDefinition;
+        }
+        
+        const broadcastProxyArgs = sprite.createList(uniqueIds.nextId(), "#args");
+        sprite.globals.set("broadcast-proxy-args", broadcastProxyArgs.id);
+        return broadcastProxyArgs;
+    }
+
+    getOrCreateGlobalBroadcastProxyReturnValue(uniqueIds: IdGenerator, sprite: Sprite) {
+        const globalDefinitionId = sprite.globals.get("broadcast-proxy-return-value");
+        if (globalDefinitionId !== undefined) {
+            const listDefinition = sprite.lists.get(globalDefinitionId);
+            if (listDefinition !== undefined) return listDefinition;
+        }
+        
+        const broadcastProxyReturnValue = sprite.createList(uniqueIds.nextId(), "#return");
+        sprite.globals.set("broadcast-proxy-return-value", broadcastProxyReturnValue.id);
+        return broadcastProxyReturnValue;
+    }
+
+    getOrCreateGlobalBroadcastThreadWait(uniqueIds: IdGenerator, sprite: Sprite) {
+        const globalDefinitionId = sprite.globals.get("broadcast-thread-wait");
+        if (globalDefinitionId !== undefined) {
+            const variableDefinition = sprite.variables.get(globalDefinitionId);
+            if (variableDefinition !== undefined) return variableDefinition;
+        }
+        
+        const broadcastProxyArgs = sprite.createVariable(uniqueIds.nextId(), "$completed");
+        sprite.globals.set("broadcast-thread-wait", broadcastProxyArgs.id);
+        return broadcastProxyArgs;
+    }
+
+    generateProcedureBroadcastProxyBlocksForSprite(
+        uniqueIds: IdGenerator,
+        parameterIds: string[],
+        existingTypes: ExistingTypes,
+        stack: Stack,
+        errorCollector: ErrorCollector
+    ) {
+        const signature = getProcedureSignature(this, existingTypes, errorCollector);
         const broadcastProxyReference = this.getBroadcastProxyReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
-        const broadcastProxyParamsReference = this.getBroadcastProxyParamsReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
+        const broadcastProxyParamsReference = this.getOrCreateGlobalBroadcastProxyArgs(uniqueIds, stack.sprite);
         const broadcastHat = new Block(
             uniqueIds.nextId(),
             "event_whenbroadcastreceived",
             { },
-            { BROADCAST_OPTION: [ broadcastProxyReference.id, broadcastProxyReference.name ] },
+            { BROADCAST_OPTION: [ broadcastProxyReference.name, broadcastProxyReference.id ] },
             false,
             true
         );
@@ -343,6 +378,41 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             stack.subBlocks.push(parameterAccess.block);
         }
         stack.orderedStackBlocks.push(procedureCall);
+
+        const proxyReturnValue = this.getOrCreateGlobalBroadcastProxyReturnValue(uniqueIds, stack.sprite);
+        const returnValue = this.getReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
+
+        if (returnValue instanceof ListDefinition) {
+            this.generateCopyStructValuesBlocks(uniqueIds, returnValue, proxyReturnValue, signature.returnType, new Map /* not called in a function */, existingTypes, stack, errorCollector);
+        } else {
+            stack.orderedStackBlocks.push(
+                new Block(
+                    uniqueIds.nextId(),
+                    "data_deletealloflist",
+                    {},
+                    { LIST: [ proxyReturnValue.name, proxyReturnValue.id ] }
+                )
+            );
+            stack.orderedStackBlocks.push(
+                new Block(
+                    uniqueIds.nextId(),
+                    "data_addtolist",
+                    { ITEM: new Shadowed(undefined, new VariableValue(returnValue.name, returnValue.id)) },
+                    { LIST: [ proxyReturnValue.name, proxyReturnValue.id ] }
+                )
+            );
+        }
+
+        const completedLock = this.getOrCreateGlobalBroadcastThreadWait(uniqueIds, stack.sprite);
+        const setCompletedLock = new Block(
+            uniqueIds.nextId(),
+            "data_setvariableto",
+            { VALUE: new Shadowed(new NumberValue(1), undefined) },
+            { VARIABLE: [ completedLock.name, completedLock.id ] }
+        );
+
+        stack.orderedStackBlocks.push(setCompletedLock);
+
         stack.sprite.applyStack(stack, broadcastHat);
     }
 
@@ -474,11 +544,12 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         }
     }
 
-    createSingleStructValueReference(
+    createInputFromReference(
         uniqueIds: IdGenerator,
-        from: Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[]
+        from: PossibleReference
     ) {
         if (from instanceof Value) return from;
+        if (from instanceof BlockRef) return from;
         if (from instanceof ParameterDefinition) {
             const paramRefBlock = this.createParameterReferenceBlock(uniqueIds, from.name);
             return new BlockRef(paramRefBlock);
@@ -514,7 +585,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         to: ListDefinition|SubListDefinition,
         stack: Stack,
     ) {
-        const reference = this.createSingleStructValueReference(uniqueIds, from,);
+        const reference = this.createInputFromReference(uniqueIds, from);
         const replaceFieldInList = new Block(
             uniqueIds.nextId(),
             "data_replaceitemoflist",
@@ -534,11 +605,11 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
     generateSetSingleVariable(
         uniqueIds: IdGenerator,
-        from: Value|VariableDefinition|ListDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[],
+        from: PossibleReference,
         to: VariableDefinition,
         stack: Stack,
     ) {
-        const reference = this.createSingleStructValueReference(uniqueIds, from,);
+        const reference = this.createInputFromReference(uniqueIds, from);
         const setVariableTo = new Block(
             uniqueIds.nextId(),
             "data_setvariableto",
@@ -649,6 +720,8 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 this.generateSetSingleVariable(uniqueIds, value, accessVariable, stack);
             } else if (value instanceof Stack) {
                 throw new Error("Got blocks to assign to variable");
+            } else if (value instanceof BlockRef) {
+                this.generateSetSingleVariable(uniqueIds, value, accessVariable, stack);
             }
         } else if (accessVariable instanceof ListDefinition || accessVariable instanceof SubListDefinition) {
             if (assignmentValue instanceof StructFieldsExpression) {
@@ -686,7 +759,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             const baseType = inferExpressionType(expression.reference, this, existingTypes, errorCollector);
             const baseReference = this.generateBlocksForCodeBlock(uniqueIds, expression.reference, parameterVariables, existingTypes, stack, errorCollector);
             if (baseReference === undefined) throw new Error("Failed to get base to assign");
-            if (baseReference instanceof Value || baseReference instanceof Stack) throw new Error("Cannot assign stack or value");
+            if (baseReference instanceof Value || baseReference instanceof Stack || baseReference instanceof BlockRef) throw new Error("Cannot assign stack or value");
             
             const rightType = inferExpressionType(expression.value, this, existingTypes, errorCollector);
     
@@ -730,11 +803,30 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         }
     }
 
-    protected getProcType(reference: Expression, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
-        if (reference instanceof KeywordExpression) {
-            
+    protected getOperatorOpcode(operator: string) {
+        switch (operator) {
+        case "+": return "operator_add";
+        case "-": return "operator_subtract";
+        case "*": return "operator_multiply";
+        case "/": return "operator_divide";
         }
-        return inferExpressionType(reference, this, existingTypes, errorCollector);
+    }
+
+    createBlockForOperator(uniqueIds: IdGenerator, operator: string, left: Value|BlockRef, right: Value|BlockRef) {
+        const opcode = this.getOperatorOpcode(operator);
+        if (opcode === undefined) throw new Error(`Unknown operator ${operator}`);
+        switch (operator) {
+        case "+":
+        case "-":
+        case "*":
+        case "/":
+            return new Block(
+                uniqueIds.nextId(),
+                opcode,
+                { NUM1: new Shadowed(undefined, left), NUM2: new Shadowed(undefined, right) },
+                { }
+            );
+        }
     }
 
     generateBlocksForCodeBlock(
@@ -762,16 +854,11 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 if (procType.functionSymbol === undefined) throw new Error(`Cannot call procedure type declaration`);
 
                 const argReferences = expression.args.map(arg => this.generateBlocksForCodeBlock(uniqueIds, arg, parameterVariables, existingTypes, stack, errorCollector));
-                for (const argReference of argReferences) {
-                    if (argReference instanceof Stack) {
-                        throw new Error("Cannot pass stack as argument into parameter");
-                    }
-                }
                 const paramReferenceBlocks: (Value|BlockRef)[] = [];
                 this.recursiveArgumentsCreateReferenceBlocks(
                     uniqueIds,
                     procType.params.map(param => param.type),
-                    argReferences as (ListDefinition|VariableDefinition|SubListDefinition|ParameterDefinition|ParameterDefinition[])[],
+                    argReferences,
                     paramReferenceBlocks,
                     stack
                 );
@@ -783,7 +870,17 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                     paramReferenceBlocks
                 );
                 stack.orderedStackBlocks.push(procedureCall);
-                return procType.functionSymbol.getReturnValueReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
+                const returnValue = procType.functionSymbol.getReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
+                if (procType.returnType.size === 1) {
+                    const storeReturnValueVariable = stack.sprite.createVariable(uniqueIds.nextId(), "ret-" + uniqueIds.nextId());
+                    this.generateSetSingleVariable(uniqueIds, returnValue, storeReturnValueVariable, stack);
+                    return storeReturnValueVariable;
+                } else {
+                    if (returnValue instanceof VariableDefinition) throw new Error("Unexpected variable return value");
+                    const storeReturnValueVariable = stack.sprite.createList(uniqueIds.nextId(), "ret-" + uniqueIds.nextId());
+                    this.generateCopyStructValuesBlocks(uniqueIds, returnValue, storeReturnValueVariable, procType.returnType, parameterVariables, existingTypes, stack, errorCollector);
+                    return storeReturnValueVariable;
+                }
             }
 
             // handle procedure used as value, which is proxied through a broadcast using a list as arguments
@@ -807,7 +904,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 stack
             );
 
-            const broadcastProxyList = procType.functionSymbol!.getBroadcastProxyParamsReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
+            const broadcastProxyList = this.getOrCreateGlobalBroadcastProxyArgs(uniqueIds, stack.sprite);
             stack.orderedStackBlocks.push(
                 new Block(
                     uniqueIds.nextId(),
@@ -827,34 +924,82 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 );
                 stack.orderedStackBlocks.push(addFieldToList);
             }
-            const broadcast = procType.functionSymbol!.getBroadcastProxyReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
-            const ref = this.createSingleStructValueReference(uniqueIds, procReference);
+            const ref = this.createInputFromReference(uniqueIds, procReference);
+            if (ref instanceof BlockRef) ref.block.shadow = false; // broadcast input is not a shadow block
+            const completedLock = this.getOrCreateGlobalBroadcastThreadWait(uniqueIds, stack.sprite);
+            const setCompletedLock = new Block(
+                uniqueIds.nextId(),
+                "data_setvariableto",
+                { VALUE: new Shadowed(new NumberValue(0), undefined) },
+                { VARIABLE: [ completedLock.name, completedLock.id ] }
+            );
             const broadcastBlock = new Block(
                 uniqueIds.nextId(),
-                "event_broadcastandwait",
-                { BROADCAST_INPUT: new Shadowed(new BroadcastValue(broadcast.name, broadcast.id), ref) },
+                "event_broadcast",
+                { BROADCAST_INPUT: new Shadowed(new BroadcastValue("", ""), ref) },
                 { }
             );
+            const conditionCheck = new Block(
+                uniqueIds.nextId(),
+                "operator_equals",
+                {
+                    OPERAND1: new Shadowed(undefined, new VariableValue(completedLock.name, completedLock.id)),
+                    OPERAND2: new Shadowed(undefined, new NumberValue(1))
+                }
+            );
+            const stack2 = stack.sprite.createStack();
+            const noOpBlockAux = new Block(uniqueIds.nextId(), "sound_volume");
+            const noOpBlock = new Block(
+                uniqueIds.nextId(),
+                "sound_setvolumeto",
+                { VOLUME: new Shadowed(undefined, new BlockRef(noOpBlockAux)) }
+            );
+            noOpBlockAux.setParentId(noOpBlock.id);
+            stack2.subBlocks.push(noOpBlockAux);
+            stack2.orderedStackBlocks.push(noOpBlock);
+            
+            const repeatUntil = new Block(
+                uniqueIds.nextId(),
+                "control_repeat_until",
+                {
+                    CONDITION: new Shadowed(undefined, new BlockRef(conditionCheck)),
+                    SUBSTACK: new Shadowed(undefined, new BlockRef(noOpBlock))
+                }
+            );
+
             if (ref instanceof BlockRef) {
                 ref.block.setParentId(broadcastBlock.id);
                 stack.subBlocks.push(ref.block);
             }
-            stack.orderedStackBlocks.push(broadcastBlock);
-            return procType.functionSymbol!.getReturnValueReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
+            stack.orderedStackBlocks.push(setCompletedLock, broadcastBlock);
+            stack.sprite.applyStack(stack2);
+            stack.orderedStackBlocks.push(repeatUntil);
+            stack.subBlocks.push(conditionCheck);
+            
+            const returnValue = this.getOrCreateGlobalBroadcastProxyReturnValue(uniqueIds, stack.sprite);
+            if (procType.returnType.size === 1) {
+                const storeReturnValueVariable = stack.sprite.createVariable(uniqueIds.nextId(), "ret-" + uniqueIds.nextId());
+                this.generateSetSingleVariable(uniqueIds, returnValue, storeReturnValueVariable, stack);
+                return storeReturnValueVariable;
+            } else {
+                const storeReturnValueVariable = stack.sprite.createList(uniqueIds.nextId(), "ret-" + uniqueIds.nextId());
+                this.generateCopyStructValuesBlocks(uniqueIds, returnValue, storeReturnValueVariable, procType.returnType, parameterVariables, existingTypes, stack, errorCollector);
+                return storeReturnValueVariable;
+            }
         } else if (expression instanceof AssignmentExpression || expression instanceof VariableDeclarationExpression) {
             this.generateAssignmentBlocks(uniqueIds, expression, parameterVariables, existingTypes, stack, errorCollector);
         } else if (expression instanceof ReturnStatementExpression) {
-            const varReference = this.getReturnValueReference(uniqueIds, existingTypes, errorCollector, stack.sprite);
+            const varReference = this.getReturnValueReference(uniqueIds, existingTypes, stack.sprite, errorCollector);
             const returnType = getProcedureSignature(this, existingTypes, errorCollector).returnType;
             const expressionType = expression.expression === undefined
                 ? VoidType.DEFINITION
                 : inferExpressionType(expression.expression, this, existingTypes, errorCollector);
     
             if (!returnType.isEquivalentTo(expressionType)) throw new Error("Bad assignment");
-
-            if (expression.expression === undefined) return;
-    
-            this.generateAssignmentBlockForVariable(uniqueIds, returnType, expression.expression, varReference, parameterVariables, existingTypes, stack, errorCollector);
+            if (expression.expression !== undefined) {
+                this.generateAssignmentBlockForVariable(uniqueIds, returnType, expression.expression, varReference, parameterVariables, existingTypes, stack, errorCollector);
+            }
+            return; // inaccessible code
         } else if (expression instanceof KeywordExpression) {
             const refSymbol = this.getIdentifierReference(expression.keyword);
             if (refSymbol instanceof VariableSymbol) {
@@ -898,6 +1043,30 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             return new NumberValue(parseFloat(expression.unprocessedNumber));
         } else if (expression instanceof StringExpression) {
             return new StringValue(expression.text);
+        } else if (expression instanceof OperatorExpression) {
+            const leftBlock = this.generateBlocksForCodeBlock(uniqueIds, expression.left, parameterVariables, existingTypes, stack, errorCollector);
+            const rightBlock = this.generateBlocksForCodeBlock(uniqueIds, expression.right, parameterVariables, existingTypes, stack, errorCollector);
+
+            const leftBlockInput = this.createInputFromReference(uniqueIds, leftBlock);
+            const rightBlockInput = this.createInputFromReference(uniqueIds, rightBlock);
+            
+            if (leftBlockInput === undefined) throw new Error("Left-hand operand not defined");
+            if (rightBlockInput === undefined) throw new Error("Right-hand operand not defined");
+
+            const operatorBlock = this.createBlockForOperator(uniqueIds, expression.operator, leftBlockInput, rightBlockInput);
+
+            if (operatorBlock === undefined) throw new Error(`Unknown operator ${expression.operator}`);
+            
+            if (leftBlockInput instanceof BlockRef) {
+                stack.subBlocks.push(leftBlockInput.block);
+                leftBlockInput.block.setParentId(operatorBlock?.id);
+            }
+            if (rightBlockInput instanceof BlockRef) {
+                stack.subBlocks.push(rightBlockInput.block);
+                rightBlockInput.block.setParentId(operatorBlock?.id);
+            }
+
+            return new BlockRef(operatorBlock);
         }
 
         return undefined;

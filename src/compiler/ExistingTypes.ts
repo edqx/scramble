@@ -1,4 +1,4 @@
-import { CodeSymbol } from "./definitions";
+import { CodeSymbol } from "./symbols";
 import { Type } from "./types";
 
 export class ExistingTypes {

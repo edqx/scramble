@@ -1,49 +1,34 @@
-import { ErrorCollector } from "../../errorCollector";
-import { VariableDeclarationExpression } from "../../expression";
-import { ListDefinition, VariableDefinition } from "../../scratch";
-import { ExistingTypes } from "../ExistingTypes";
+import { Block, BlockInput, Shadowed, VariableValue } from "../../scratch";
 import { IdGenerator } from "../IdGenerator";
-import { Sprite } from "../../scratch/Sprite";
-import { resolveSymbolType } from "../resolveSymbolType";
-import { SymbolDeclarationStore } from "../symbolDeclarationStore";
-import { ProcedureSymbol } from "./Procedure";
-import { CodeSymbol, SymbolFlag, SymbolType } from "./Symbol";
+import { Definition } from "./Definition";
 
-export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
-    static analyseDeclaration(
-        parentScope: ProcedureSymbol,
-        expression: VariableDeclarationExpression,
-        symbols: SymbolDeclarationStore,
-        errorCollector: ErrorCollector
-    ) {
-        const error = parentScope.getErrorNotTaken(expression, expression.identifier);
-        if (error) return errorCollector.addError(error);
-
-        // todo: validate type
-        const varSymbol = symbols.addVariable(expression, parentScope);
-        if (expression.varType === "let") {
-            varSymbol.flags.add(SymbolFlag.VariableAllocatedOnHeap);
-        }
+export class VariableDefinition extends Definition {
+    constructor(public readonly name: string, public readonly id: string) { super(1); }
+    
+    toJSON() {
+        return [ this.name, "" ];
     }
 
-    protected _cachedVarDefinition: ListDefinition|VariableDefinition|undefined;
-    
-    constructor(id: string, parent: ProcedureSymbol|undefined, name: string, expression: VariableDeclarationExpression) {
-        super(id, parent, SymbolType.Variable, name, expression);
+    generateInputs(uniqueIds: IdGenerator): BlockInput[] {
+        return [ this.generateInputAtOffset(uniqueIds, 0) ];
     }
-    
-    getVarDefinitionReference(uniqueIds: IdGenerator, existingTypes: ExistingTypes, errorCollector: ErrorCollector, sprite: Sprite) {
-        if (this._cachedVarDefinition !== undefined) return this._cachedVarDefinition;
 
-        const typeSignature = resolveSymbolType(this, existingTypes, errorCollector);
-        if (typeSignature.size > 1) {
-            const list = sprite.createList(uniqueIds.nextId(), this.name);
-            this._cachedVarDefinition = list;
-            return list;
-        } else {
-            const variable = sprite.createVariable(uniqueIds.nextId(), this.name);
-            this._cachedVarDefinition = variable;
-            return variable;
-        }
+    generateInputAtOffset(uniqueIds: IdGenerator, offset: number): BlockInput {
+        return new VariableValue(this.name, this.id);
+    }
+
+    generateIntantiation(uniqueIds: IdGenerator, values: BlockInput[]): Block[] {
+        if (values[0] === undefined) throw new Error("Assertion failed; not enough values");
+        return this.generateSetValueAtOffset(uniqueIds, values[0], 0);
+    }
+
+    generateSetValueAtOffset(uniqueIds: IdGenerator, value: BlockInput, offset: number): Block[] {
+        const block = new Block(
+            uniqueIds.nextId(),
+            "data_setvariableto",
+            { VALUE: new Shadowed(undefined, value) },
+            { VARIABLE: [ this.name, this.id ] }
+        );
+        return [ block ];
     }
 }

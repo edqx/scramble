@@ -15,8 +15,10 @@ export class BlockRef {
     }
 }
 
+export type BlockInput = BlockRef|Value;
+
 export class Shadowed {
-    constructor(public readonly base: BlockRef|Value|undefined, public readonly overlay: BlockRef|Value|undefined) {}
+    constructor(public readonly base: BlockInput|undefined, public readonly overlay: BlockInput|undefined) {}
 
     getState() {
         if (this.base !== undefined && this.overlay !== undefined) return ShadowState.HasBlockShadow;

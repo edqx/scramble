@@ -1,7 +1,7 @@
 import { ErrorCollector } from "../errorCollector";
 import { Expression, ParenthesisExpression, ReturnStatementExpression, IfStatementExpression, WhileStatementExpression, ScriptExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
-import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol } from "./definitions";
+import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol } from "./symbols";
 import { inferExpressionType } from "./inferExpressionType";
 import { resolveTypeName } from "./resolveTypeName";
 import { Type, VoidType, ProcedureSignatureType, ProcedureSignatureTypeParameter } from "./types";

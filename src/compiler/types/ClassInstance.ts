@@ -1,4 +1,4 @@
-import { ClassSymbol, FieldSymbol, ProcedureSymbol } from "../definitions";
+import { ClassSymbol, FieldSymbol, ProcedureSymbol } from "../symbols";
 import { Type } from "./Type";
 
 export class ClassInstanceTypeField {

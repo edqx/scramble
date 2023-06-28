@@ -1,4 +1,4 @@
-import { ParameterSymbol, ProcedureSymbol } from "../definitions";
+import { ParameterSymbol, ProcedureSymbol } from "../symbols";
 import { Type } from "./Type";
 
 export class ProcedureSignatureTypeParameter {
