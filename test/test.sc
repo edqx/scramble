@@ -1,9 +1,15 @@
+proc farting() {
+    return 5;
+}
+
+proc shite() {
+    return farting;
+}
+
+proc abc() {
+    return shite;
+}
+
 proc main() {
-    var a = 3;
-    var g = 0;
-    if a == 4 then {
-        g = 1;
-    } else {
-        g = 0;
-    }
+    var d = abc()()();
 }

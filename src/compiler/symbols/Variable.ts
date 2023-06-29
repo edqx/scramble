@@ -38,7 +38,7 @@ export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
         const typeSignature = resolveSymbolType(this, existingTypes, errorCollector);
         if (typeSignature.size > 1) { // temp?
             const variables = [];
-            for (let i = 0; i < typeSignature.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), "<-" + this.name + "_" + i));
+            for (let i = 0; i < typeSignature.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), this.name + "_" + i));
             const composite = new CompositeDefinition(typeSignature, variables);
             this._cachedVarDefinition = composite;
             return composite;

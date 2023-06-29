@@ -1,6 +1,6 @@
-import { Block, BlockRef } from "../../scratch";
+import { Block, BlockRef, Shadowed, Value } from "../../scratch";
+import { IdGenerator } from "../IdGenerator";
 import { BroadcastDefinition } from "./Broadcast";
-import { Definition } from "./Definition";
 import { ListDefinition } from "./List";
 import { VariableDefinition } from "./Variable";
 
@@ -13,6 +13,37 @@ export class Stack {
 
     applySubstack(subStack: Stack) {
         this.orderedStackBlocks.push(...subStack.orderedStackBlocks);
+    }
+
+    protected cloneValue(uniqueIds: IdGenerator, value: BlockRef|Value|undefined): BlockRef|Value|undefined {
+        if (value === undefined) return value;
+        if (value instanceof Value) return value;
+        
+        return new BlockRef(this.cloneBlock(uniqueIds, value.block));
+    }
+
+    protected cloneShadowed(uniqueIds: IdGenerator, shadowed: Shadowed): Shadowed {
+        return new Shadowed(this.cloneValue(uniqueIds, shadowed.base), this.cloneValue(uniqueIds, shadowed.overlay));
+    }
+
+    protected cloneBlock(uniqueIds: IdGenerator, block: Block): Block {
+        return new Block(
+            uniqueIds.nextId(),
+            block.opcode,
+            Object.fromEntries(Object.entries(block.inputs).map(([ name, shadowed ]) => [ name, this.cloneShadowed(uniqueIds, shadowed) ])),
+            block.fields,
+            block.shadow,
+            block.topLevel,
+            block.mutation
+        );
+    }
+
+    clone(uniqueIds: IdGenerator) {
+        const newStack = new Stack(this.sprite);
+        for (const stackBlock of this.orderedStackBlocks) {
+            newStack.orderedStackBlocks.push(this.cloneBlock(uniqueIds, stackBlock));
+        }
+        return newStack;
     }
 }
 

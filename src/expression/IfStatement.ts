@@ -88,8 +88,7 @@ export class IfStatementExpression extends Expression {
         errorCollector: ErrorCollector
     ) {
         const blockAst = new AstCollector;
-        ParenthesisExpression.readExpectBlock(blockToken, astCollector, tokenReader, errorCollector);
-        parseSingleTokenAst(blockToken, blockAst, tokenReader, errorCollector);
+        ParenthesisExpression.readExpectBlock(blockToken, blockAst, tokenReader, errorCollector);
         this.attemptReadElse(ifKeyword, conditionAst, blockAst, astCollector, tokenReader, errorCollector);
     }
 

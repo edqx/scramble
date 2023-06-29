@@ -1,5 +1,5 @@
 import { ErrorCollector } from "../errorCollector";
-import { KeywordExpression, ProcDeclarationExpression } from "../expression";
+import { KeywordExpression, ProcDeclarationExpression, TypeGuardExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbol } from "./symbols";
 import { getProcedureSignature } from "./resolveSymbolType";

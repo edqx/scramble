@@ -1,21 +1,21 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression, WhileStatementExpression } from "../../expression";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
 import { staticallyAnalyseExpressionDeclaration } from "../analysis";
-import { BroadcastDefinition, CompositeDefinition, ListDefinition, ParameterDefinition, PresetDefinition, Sprite, Stack, VariableDefinition } from "../definitions";
+import { BroadcastDefinition, CompositeDefinition, ParameterDefinition, PresetDefinition, Sprite, Stack } from "../definitions";
 import { getProcedureSignature, resolveSymbolType } from "../resolveSymbolType";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
 import { ClassSymbol } from "./Class";
 import { MacroSymbol } from "./Macro";
 import { ParameterSymbol } from "./Parameter";
-import { CodeSymbol, ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
-import { Block, BlockInput, BlockRef, BroadcastValue, NumberValue, Shadowed, StringValue, Value } from "../../scratch";
+import { ScopedSymbol, SymbolFlag, SymbolType } from "./Symbol";
+import { Block, BlockInput, BlockRef, BroadcastValue, NumberValue, Shadowed, StringValue } from "../../scratch";
 import { Definition } from "../definitions/Definition";
 import { VariableSymbol } from "./Variable";
 import { inferExpressionType } from "../inferExpressionType";
-import { ClassInstanceType, ClassInstanceTypeMethod, ProcedureSignatureType, Type, VoidType } from "../types";
-import { getClassInstanceType, resolveTypeName } from "../resolveTypeName";
+import { ClassInstanceType, ProcedureSignatureType, Type, VoidType } from "../types";
+import { getClassInstanceType } from "../resolveTypeName";
 
 export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|ScriptExpression> {
     static analyseDeclaration(
@@ -177,10 +177,13 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         case "*": return "operator_multiply";
         case "/": return "operator_divide";
         case "==": return "operator_equals";
+        case "!=": return "operator_not";
+        case "<": return "operator_lt";
+        case ">": return "operator_gt";
         }
     }
 
-    createBlockForOperator(uniqueIds: IdGenerator, operator: string, left: Definition, right: Definition) {
+    createBlockForOperator(uniqueIds: IdGenerator, operator: string, left: Definition, right: Definition): Block {
         const opcode = this.getOperatorOpcode(operator);
         if (opcode === undefined) throw new Error(`Assertion failed; unknown operator ${operator}`);
         switch (operator) {
@@ -192,8 +195,14 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
                 NUM1: new Shadowed(undefined, left.generateInputAtOffset(uniqueIds, 0)), NUM2: new Shadowed(undefined, right.generateInputAtOffset(uniqueIds, 0))
             });
         case "==":
+        case "<":
+        case ">":
             return new Block(uniqueIds.nextId(), opcode, {
                 OPERAND1: new Shadowed(undefined, left.generateInputAtOffset(uniqueIds, 0)), OPERAND2: new Shadowed(undefined, right.generateInputAtOffset(uniqueIds, 0))
+            });
+        case "!=":
+            return new Block(uniqueIds.nextId(), opcode, {
+                OPERAND: new Shadowed(undefined, new BlockRef(this.createBlockForOperator(uniqueIds, "==", left, right)))
             });
         }
         throw new Error(`Assertion failed; unknown operator ${operator}`);
@@ -460,31 +469,30 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
             const thenStack = stack.sprite.createStack();
             this.traverseAndGenerateBlocksForCodeBlock(block.block, thenStack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+            stack.sprite.applyStack(thenStack);
 
             if (block.elseBlock !== undefined) {
                 const elseStack = stack.sprite.createStack();
-                this.traverseAndGenerateBlocksForCodeBlock(block.block, elseStack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+                this.traverseAndGenerateBlocksForCodeBlock(block.elseBlock, elseStack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+                stack.sprite.applyStack(elseStack);
                 if (thenStack.orderedStackBlocks.length === 0) {
                     if (elseStack.orderedStackBlocks.length === 0)
                         return;
 
                     const ifElseBlock = new Block(uniqueIds.nextId(), "control_if_else", {
                         CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
-                        SUBSTACK2: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0]))
+                        SUBSTACK2: new Shadowed(undefined, new BlockRef(elseStack.orderedStackBlocks[0]))
                     });
         
                     stack.orderedStackBlocks.push(ifElseBlock);
                     return;
                 }
                 
-                stack.sprite.applyStack(thenStack);
                 if (elseStack.orderedStackBlocks.length > 0) {
-                    stack.sprite.applyStack(elseStack);
-        
                     const ifElseBlock = new Block(uniqueIds.nextId(), "control_if_else", {
                         CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
                         SUBSTACK: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0])),
-                        SUBSTACK2: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0]))
+                        SUBSTACK2: new Shadowed(undefined, new BlockRef(elseStack.orderedStackBlocks[0]))
                     });
         
                     stack.orderedStackBlocks.push(ifElseBlock);
@@ -494,8 +502,6 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
 
             if (thenStack.orderedStackBlocks.length === 0)
                 return;
-                
-            stack.sprite.applyStack(thenStack);
 
             const ifBlock = new Block(uniqueIds.nextId(), "control_if", {
                 CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
@@ -503,6 +509,28 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             });
 
             stack.orderedStackBlocks.push(ifBlock);
+            return;
+        } else if (block instanceof WhileStatementExpression) {
+            const substack = stack.sprite.createStack();
+            const conditionBlock = this.traverseAndGenerateBlocksForCodeBlock(block.condition, substack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+            stack.applySubstack(substack);
+            if (conditionBlock === undefined) throw new Error("Assertion failed; invalid condition");
+            
+            const blockStack = stack.sprite.createStack();
+            this.traverseAndGenerateBlocksForCodeBlock(block.block, blockStack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
+            blockStack.applySubstack(substack.clone(uniqueIds)); // re-compute condition at the end of while
+            stack.sprite.applyStack(blockStack);
+
+            const invertCondition = new Block(uniqueIds.nextId(), "operator_not", { // scratch uses repeat-until while Scramble uses repeat-while
+                OPERAND: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0))
+            });
+            
+            const repeatUntilBlock = new Block(uniqueIds.nextId(), "control_repeat_until", {
+                CONDITION: new Shadowed(undefined, new BlockRef(invertCondition)),
+                SUBSTACK: new Shadowed(undefined, new BlockRef(blockStack.orderedStackBlocks[0]))
+            });
+
+            stack.orderedStackBlocks.push(repeatUntilBlock);
             return;
         } else if (block instanceof OperatorExpression) {
             const leftBlock = this.traverseAndGenerateBlocksForCodeBlock(block.left, stack, paramRedefinitions, thisDefinition, uniqueIds, existingTypes, errorCollector);
