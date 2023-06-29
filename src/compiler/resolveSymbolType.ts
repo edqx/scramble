@@ -73,7 +73,7 @@ export function getProcedureSignature(symbol: ProcedureSymbol, existingTypes: Ex
     if (symbol.expression.block === undefined) throw new Error("Procedure type declaration must have a return type specified");
 
     const possibleInferredReturnTypes = getPotentialReturnTypes(symbol.expression.block, symbol, existingTypes, errorCollector);
-    if (possibleInferredReturnTypes.length > 1)
+    if (new Set(possibleInferredReturnTypes).size > 1)
         throw new Error("Function cannot have multiple return types");
 
     return new ProcedureSignatureType(symbol, argTypes, possibleInferredReturnTypes[0]);

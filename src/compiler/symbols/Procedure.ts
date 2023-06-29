@@ -1,5 +1,5 @@
 import { ErrorCollector } from "../../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
+import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, IfStatementExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, ScriptExpression, StringExpression, StructFieldsExpression, VariableDeclarationExpression } from "../../expression";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
 import { staticallyAnalyseExpressionDeclaration } from "../analysis";
@@ -164,6 +164,7 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         case "-": return "operator_subtract";
         case "*": return "operator_multiply";
         case "/": return "operator_divide";
+        case "==": return "operator_equals";
         }
     }
 
@@ -177,6 +178,10 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
         case "/":
             return new Block(uniqueIds.nextId(), opcode, {
                 NUM1: new Shadowed(undefined, left.generateInputAtOffset(uniqueIds, 0)), NUM2: new Shadowed(undefined, right.generateInputAtOffset(uniqueIds, 0))
+            });
+        case "==":
+            return new Block(uniqueIds.nextId(), opcode, {
+                OPERAND1: new Shadowed(undefined, left.generateInputAtOffset(uniqueIds, 0)), OPERAND2: new Shadowed(undefined, right.generateInputAtOffset(uniqueIds, 0))
             });
         }
         throw new Error(`Assertion failed; unknown operator ${operator}`);
@@ -353,6 +358,56 @@ export class ProcedureSymbol extends ScopedSymbol<ProcDeclarationExpression|Scri
             if (!(structType instanceof ClassInstanceType)) throw new Error("Assertion failed; type cannot be instantiated as struct");
 
             return this.definePresetForTypeStructInstantiationImpl(structType, block, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+        } else if (block instanceof IfStatementExpression) {
+            const conditionBlock = this.traverseAndGenerateBlocksForCodeBlock(block.condition, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+            if (conditionBlock === undefined) throw new Error("Assertion failed; invalid condition");
+
+            const thenStack = stack.sprite.createStack();
+            this.traverseAndGenerateBlocksForCodeBlock(block.block, thenStack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+
+            if (block.elseBlock !== undefined) {
+                const elseStack = stack.sprite.createStack();
+                this.traverseAndGenerateBlocksForCodeBlock(block.block, elseStack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
+                if (thenStack.orderedStackBlocks.length === 0) {
+                    if (elseStack.orderedStackBlocks.length === 0)
+                        return;
+
+                    const ifElseBlock = new Block(uniqueIds.nextId(), "control_if_else", {
+                        CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
+                        SUBSTACK2: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0]))
+                    });
+        
+                    stack.orderedStackBlocks.push(ifElseBlock);
+                    return;
+                }
+                
+                stack.sprite.applyStack(thenStack);
+                if (elseStack.orderedStackBlocks.length > 0) {
+                    stack.sprite.applyStack(elseStack);
+        
+                    const ifElseBlock = new Block(uniqueIds.nextId(), "control_if_else", {
+                        CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
+                        SUBSTACK: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0])),
+                        SUBSTACK2: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0]))
+                    });
+        
+                    stack.orderedStackBlocks.push(ifElseBlock);
+                    return;
+                }
+            }
+
+            if (thenStack.orderedStackBlocks.length === 0)
+                return;
+                
+            stack.sprite.applyStack(thenStack);
+
+            const ifBlock = new Block(uniqueIds.nextId(), "control_if", {
+                CONDITION: new Shadowed(undefined, conditionBlock.generateInputAtOffset(uniqueIds, 0)),
+                SUBSTACK: new Shadowed(undefined, new BlockRef(thenStack.orderedStackBlocks[0]))
+            });
+
+            stack.orderedStackBlocks.push(ifBlock);
+            return;
         } else if (block instanceof OperatorExpression) {
             const leftBlock = this.traverseAndGenerateBlocksForCodeBlock(block.left, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
             const rightBlock = this.traverseAndGenerateBlocksForCodeBlock(block.right, stack, paramRedefinitions, uniqueIds, existingTypes, errorCollector);
