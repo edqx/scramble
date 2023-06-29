@@ -34,9 +34,9 @@ export class AccessorExpression extends Expression {
         }
         const right = astCollector.popLastExpression()!;
         const left = astCollector.popLastExpression()!;
+        console.log(right);
         if (!(right instanceof KeywordExpression)) {
             throw new Error("Expected keyword property");
-            return;
         }
         astCollector.appendExpression(new AccessorExpression(left, right));
     }

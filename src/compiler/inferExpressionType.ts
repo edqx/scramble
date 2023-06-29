@@ -4,7 +4,7 @@ import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, F
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, MacroSymbol, ScopedSymbol } from "./symbols";
 import { resolveSymbolType } from "./resolveSymbolType";
-import { resolveTypeName } from "./resolveTypeName";
+import { getClassInstanceType, resolveTypeName } from "./resolveTypeName";
 import { ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, VoidType } from "./types";
 
 export function inferExpressionType(expression: Expression, expressionScope: ScopedSymbol|ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type {
@@ -66,13 +66,19 @@ in argument ${i + 1} for function signature '${procSignature.getName()}'`)
         const baseType = inferExpressionType(expression.base, expressionScope, existingTypes, errorCollector);
         if (baseType instanceof ClassInstanceType) {
             const field = baseType.fields.get(expression.property.keyword);
-            if (field === undefined) throw new Error(`Property ${expression.property.keyword} not found on type ${baseType.getName()}`);
+            
+            const method = baseType.methods.get(expression.property.keyword);
+            if (field === undefined && method === undefined) throw new Error(`Property ${expression.property.keyword} not found on type ${baseType.getName()}`);
 
-            return field.type;
+            return field?.type || method!.type;
         } else {
             throw new Error("Cannot access property on non-class instance");
         }
     } else if (expression instanceof KeywordExpression) {
+        if (expression.keyword === "this") {
+            return getClassInstanceType(expressionScope.parent as ClassSymbol, existingTypes, errorCollector);
+        }
+
         const referenceSymbol = expressionScope.getIdentifierReference(expression.keyword);
         if (referenceSymbol === undefined) {
             errorCollector.addError(

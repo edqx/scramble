@@ -2,7 +2,8 @@ import { ErrorCollector } from "../../errorCollector";
 import { VariableDeclarationExpression } from "../../expression";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { ListDefinition, Sprite, VariableDefinition } from "../definitions";
+import { CompositeDefinition, ListDefinition, Sprite, VariableDefinition } from "../definitions";
+import { Definition } from "../definitions/Definition";
 import { resolveSymbolType } from "../resolveSymbolType";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
 import { ProcedureSymbol } from "./Procedure";
@@ -25,7 +26,7 @@ export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
         }
     }
     
-    protected _cachedVarDefinition: ListDefinition|VariableDefinition|undefined;
+    protected _cachedVarDefinition: Definition|undefined;
 
     constructor(id: string, parent: ProcedureSymbol|undefined, name: string, expression: VariableDeclarationExpression) {
         super(id, parent, SymbolType.Variable, name, expression);
@@ -35,6 +36,14 @@ export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
         if (this._cachedVarDefinition !== undefined) return this._cachedVarDefinition;
 
         const typeSignature = resolveSymbolType(this, existingTypes, errorCollector);
+        if (typeSignature.size > 1) { // temp?
+            const variables = [];
+            for (let i = 0; i < typeSignature.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), "<-" + this.name + "_" + i));
+            const composite = new CompositeDefinition(typeSignature, variables);
+            this._cachedVarDefinition = composite;
+            return composite;
+        }
+
         if (typeSignature.size > 1) {
             const list = sprite.createList(uniqueIds.nextId(), this.name, typeSignature.size);
             this._cachedVarDefinition = list;

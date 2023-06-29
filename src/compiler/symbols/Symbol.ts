@@ -18,7 +18,9 @@ export enum SymbolFlag {
     Hoisted,
     ParamReassigned,
     ProcUsedRecursively,
+    ProcIsMethod,
     ProcUsedAsValue,
+    MethodThisReassigned,
     VariableAllocatedOnHeap
 }
 
@@ -77,6 +79,12 @@ export class ScopedSymbol<ExpressionType extends Expression = Expression> extend
     }
 
     getIdentifierReference(name: string): CodeSymbol|undefined {
+        if (this.parent instanceof ClassSymbol) {
+            if (name === "this") {
+                return this.parent;
+            }
+        }
+
         const symbol = this.symbols.get(name);
         if (symbol === undefined) return this.parent?.getIdentifierReference(name) || undefined;
         return symbol;

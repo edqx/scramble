@@ -55,6 +55,8 @@ export class CompositeDefinition extends Definition {
                     if (component instanceof CompositeDefinition) {
                         const comp = new CompositeDefinition(field.type, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, field.type.size));
                         return comp;
+                    } else if (component instanceof ListDefinition) {
+                        return new CompositeDefinition(field.type, [ component.sliceAtOffset(startFieldOffset - searchOffset, field.type.size) ]);
                     }
                     return new CompositeDefinition(field.type, [ component ]);
                 }

@@ -5,6 +5,24 @@ import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbo
 import { getProcedureSignature } from "./resolveSymbolType";
 import { ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, VoidType } from "./types";
 
+export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
+    let offset = 0;
+    const fields: Map<string, ClassInstanceTypeField> = new Map;
+    const methods: Map<string, ClassInstanceTypeMethod> = new Map;
+    for (const [, child ] of typeSymbol.children) {
+        if (child instanceof FieldSymbol) {
+            const fieldType = resolveTypeName(typeSymbol, child.expression.type, existingTypes, errorCollector);
+            const field = new ClassInstanceTypeField(offset, child, fieldType);
+            fields.set(child.name, field);
+            offset += field.type.size;
+        } else if (child instanceof ProcedureSymbol) {
+            const method = new ClassInstanceTypeMethod(child, getProcedureSignature(child, existingTypes, errorCollector));
+            methods.set(child.name, method);
+        }
+    }
+    return existingTypes.getOrCreateTypeForSymbol(typeSymbol, new ClassInstanceType(typeSymbol, fields, methods));
+}
+
 export function resolveTypeName(
     scope: ScopedSymbol|ClassSymbol,
     type: ProcDeclarationExpression|KeywordExpression,
@@ -35,23 +53,9 @@ export function resolveTypeName(
     const typeSymbol = scope.getIdentifierReference(type.keyword);
 
     if (typeSymbol instanceof TypeAliasSymbol) {
-        return resolveTypeName(scope, typeSymbol.expression.type, existingTypes, errorCollector);
+        return resolveTypeName(typeSymbol.parent!, typeSymbol.expression.type, existingTypes, errorCollector);
     } else if (typeSymbol instanceof ClassSymbol) {
-        let offset = 0;
-        const fields: Map<string, ClassInstanceTypeField> = new Map;
-        const methods: Map<string, ClassInstanceTypeMethod> = new Map;
-        for (const [, child ] of typeSymbol.children) {
-            if (child instanceof FieldSymbol) {
-                const fieldType = resolveTypeName(scope, child.expression.type, existingTypes, errorCollector);
-                const field = new ClassInstanceTypeField(offset, child, fieldType);
-                fields.set(child.name, field);
-                offset += field.type.size;
-            } else if (child instanceof ProcedureSymbol) {
-                const method = new ClassInstanceTypeMethod(child, getProcedureSignature(child, existingTypes, errorCollector));
-                methods.set(child.name, method);
-            }
-        }
-        return existingTypes.getOrCreateTypeForSymbol(typeSymbol, new ClassInstanceType(typeSymbol, fields, methods));
+        return getClassInstanceType(typeSymbol, existingTypes, errorCollector);
     }
 
     throw new Error(`Invalid type reference '${type}'`);
