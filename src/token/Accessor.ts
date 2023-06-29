@@ -15,6 +15,6 @@ export class AccessorToken extends Token {
     }
 
     getPrecedence() {
-        return 4;
+        return 5;
     }
 }
