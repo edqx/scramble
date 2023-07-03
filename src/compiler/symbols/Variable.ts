@@ -4,7 +4,8 @@ import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
 import { CompositeDefinition, ListDefinition, Sprite, VariableDefinition } from "../definitions";
 import { Definition } from "../definitions/Definition";
-import { resolveSymbolType } from "../resolveSymbolType";
+import { resolveSymbolType, resolveThisType } from "../resolveSymbolType";
+import { getClassInstanceType } from "../resolveTypeName";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
 import { ProcedureSymbol } from "./Procedure";
 import { CodeSymbol, SymbolFlag, SymbolType } from "./Symbol";
@@ -35,17 +36,18 @@ export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
     getVarDefinitionReference(sprite: Sprite, uniqueIds: IdGenerator, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
         if (this._cachedVarDefinition !== undefined) return this._cachedVarDefinition;
 
-        const typeSignature = resolveSymbolType(this, existingTypes, errorCollector);
-        if (typeSignature.size > 1) { // temp?
+        const typeSignature = resolveThisType(resolveSymbolType(this, existingTypes, errorCollector), existingTypes, errorCollector);
+
+        if (typeSignature.getSize() > 1) { // temp?
             const variables = [];
-            for (let i = 0; i < typeSignature.size; i++) variables.push(sprite.createVariable(uniqueIds.nextId(), this.name + "_" + i));
+            for (let i = 0; i < typeSignature.getSize(); i++) variables.push(sprite.createVariable(uniqueIds.nextId(), this.name + "_" + i));
             const composite = new CompositeDefinition(typeSignature, variables);
             this._cachedVarDefinition = composite;
             return composite;
         }
 
-        if (typeSignature.size > 1) {
-            const list = sprite.createList(uniqueIds.nextId(), this.name, typeSignature.size);
+        if (typeSignature.getSize() > 1) {
+            const list = sprite.createList(uniqueIds.nextId(), this.name, typeSignature.getSize());
             this._cachedVarDefinition = list;
             return list;
         } else {

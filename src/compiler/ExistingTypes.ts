@@ -8,9 +8,9 @@ export class ExistingTypes {
         this.typeCache = new Map;
     }
 
-    getOrCreateTypeForSymbol(symbol: CodeSymbol, type: Type) {
+    getOrCreateTypeForSymbol<T extends Type>(symbol: CodeSymbol, type: T) {
         const cachedType = this.typeCache.get(symbol);
-        if (cachedType) return cachedType;
+        if (cachedType) return cachedType as T;
         
         this.typeCache.set(symbol, type);
         return type;

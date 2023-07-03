@@ -1,12 +1,13 @@
 import { ClassSymbol, FieldSymbol, ProcedureSymbol } from "../symbols";
 import { ProcedureSignatureType } from "./ProcedureSignature";
+import { UnresolvedType } from "./This";
 import { Type } from "./Type";
 
 export class ClassInstanceTypeField {
     constructor(
         public readonly offset: number,
         public readonly fieldSymbol: FieldSymbol,
-        public readonly type: Type
+        public readonly type: Type|UnresolvedType
     ) { }
 }
 
@@ -27,7 +28,8 @@ export class ClassInstanceType extends Type {
 
         const allFields = [...fields.values()]; // use offset of last field to get total size
         const lastField = allFields[allFields.length - 1];
-        this.size = lastField === undefined ? 1 : Math.max(1, lastField.offset + lastField.type.size);
+        if (lastField.type instanceof UnresolvedType) throw new Error("Assertion error; cannot calculate size of fields with recursive types");
+        this.size = lastField === undefined ? 1 : Math.max(1, lastField.offset + lastField.type.getSize());
     }
     
     isEquivalentTo(other: Type): boolean {

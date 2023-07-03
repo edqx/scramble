@@ -23,12 +23,12 @@ export class ParameterDefinition extends Definition {
             return new CompositeDefinition(type, this.defineExpandedFromImplFields(name, type, uniqueIds));
         }
 
-        if (type.size === 1) {
+        if (type.getSize() === 1) {
             return new CompositeDefinition(type, [ new ParameterDefinition(name, uniqueIds.nextId()) ]);
         }
 
         const paramDefinitions: ParameterDefinition[] = [];
-        for (let i = 0; i < type.size; i++) {
+        for (let i = 0; i < type.getSize(); i++) {
             paramDefinitions.push(new ParameterDefinition(name + "_" + i, uniqueIds.nextId()));
         }
         return new CompositeDefinition(type, paramDefinitions);

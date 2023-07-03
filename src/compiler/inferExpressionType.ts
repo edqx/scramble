@@ -4,10 +4,10 @@ import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, F
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, MacroSymbol, ScopedSymbol } from "./symbols";
 import { resolveSymbolType } from "./resolveSymbolType";
-import { getClassInstanceType, resolveTypeName } from "./resolveTypeName";
-import { ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, VoidType } from "./types";
+import { resolveTypeName } from "./resolveTypeName";
+import { ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, UnresolvedType, VoidType } from "./types";
 
-export function inferExpressionType(expression: Expression, expressionScope: ScopedSymbol|ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type {
+export function inferExpressionType(expression: Expression, expressionScope: ScopedSymbol|ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type|UnresolvedType {
     if (expression instanceof NumberExpression) {
         return PrimitiveType.DEFINITIONS.number;
     } else if (expression instanceof StringExpression) {
@@ -17,6 +17,7 @@ export function inferExpressionType(expression: Expression, expressionScope: Sco
             throw new Error("Instantiating sub-class not supported");
 
         const constructorType = resolveTypeName(expressionScope, expression.reference, existingTypes, errorCollector);
+        if (constructorType instanceof UnresolvedType) return new UnresolvedType(expression, expressionScope);
         if (!(constructorType instanceof ClassInstanceType)) throw new Error("Can only instantiate classes");
     
         return constructorType;
@@ -36,6 +37,9 @@ export function inferExpressionType(expression: Expression, expressionScope: Sco
         }
 
         const procSignature = inferExpressionType(expression.reference, expressionScope, existingTypes, errorCollector);
+        if (procSignature instanceof UnresolvedType) {
+            return new UnresolvedType(expression, expressionScope);
+        }
         if (!(procSignature instanceof ProcedureSignatureType))
             throw new Error("Bad function call");
 
@@ -51,7 +55,11 @@ argument${procSignature.params.length === 1 ? "" : "s"} whereas only ${expressio
 
         for (let i = 0; i < expression.args.length; i++) {
             const inferredArgumentType = inferExpressionType(expression.args[i], expressionScope, existingTypes, errorCollector);
-            if (!inferredArgumentType.isEquivalentTo(procSignature.params[i].type)) {
+            const paramType = procSignature.params[i].type;
+            if (paramType instanceof UnresolvedType) {
+                return new UnresolvedType(expression, expressionScope);
+            }
+            if (!inferredArgumentType.isEquivalentTo(paramType)) {
                 errorCollector.addError(
                     new CompilerError(ErrorCode.BadFunctioncall)
                         .addError(expression.position, "Bad function call")
@@ -70,13 +78,18 @@ in argument ${i + 1} for function signature '${procSignature.getName()}'`)
             const method = baseType.methods.get(expression.property.keyword);
             if (field === undefined && method === undefined) throw new Error(`Property ${expression.property.keyword} not found on type ${baseType.getName()}`);
 
-            return field?.type || method!.type;
+            return field?.type || resolveSymbolType(method!.methodSymbol, existingTypes, errorCollector);
+        } else if (baseType instanceof UnresolvedType) {
+            return new UnresolvedType(expression, expressionScope);
         } else {
             throw new Error("Cannot access property on non-class instance");
         }
     } else if (expression instanceof KeywordExpression) {
         if (expression.keyword === "this") {
-            return getClassInstanceType(expressionScope.parent as ClassSymbol, existingTypes, errorCollector);
+            if (!existingTypes.typeCache.has(expressionScope.parent as ClassSymbol)) {
+                return new UnresolvedType(expression, expressionScope);
+            }
+            return existingTypes.typeCache.get(expressionScope.parent as ClassSymbol)!;
         }
 
         const referenceSymbol = expressionScope.getIdentifierReference(expression.keyword);
@@ -88,11 +101,28 @@ in argument ${i + 1} for function signature '${procSignature.getName()}'`)
             );
             return VoidType.DEFINITION;
         }
+        
+        const existingType = existingTypes.typeCache.get(referenceSymbol);
+        if (existingType !== undefined) return existingType;
+
+        let parent: ScopedSymbol|ClassSymbol|undefined = expressionScope;
+        while (parent !== undefined) {
+            if (parent === referenceSymbol) {
+                return new UnresolvedType(expression, expressionScope);
+            }
+            parent = parent.parent;
+        }
 
         return resolveSymbolType(referenceSymbol, existingTypes, errorCollector);
     } else if (expression instanceof OperatorExpression) {
         const left = inferExpressionType(expression.left, expressionScope, existingTypes, errorCollector);
         const right = inferExpressionType(expression.right, expressionScope, existingTypes, errorCollector);
+        if (left instanceof UnresolvedType) {
+            return new UnresolvedType(expression, expressionScope);
+        }
+        if (right instanceof UnresolvedType) {
+            return new UnresolvedType(expression, expressionScope);
+        }
         if (!(left instanceof PrimitiveType) || !(right instanceof PrimitiveType)) {
             throw new Error(`Operator '${expression.operator}' cannot be applied to '${left.getName()}' and '${right.getName()}'`);
         }

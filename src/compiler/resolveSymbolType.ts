@@ -1,14 +1,14 @@
 import { ErrorCollector } from "../errorCollector";
-import { Expression, ParenthesisExpression, ReturnStatementExpression, IfStatementExpression, WhileStatementExpression, ScriptExpression } from "../expression";
+import { Expression, ParenthesisExpression, ReturnStatementExpression, IfStatementExpression, WhileStatementExpression, ScriptExpression, KeywordExpression, AccessorExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
-import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol } from "./symbols";
+import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol, ClassSymbol } from "./symbols";
 import { inferExpressionType } from "./inferExpressionType";
-import { resolveTypeName } from "./resolveTypeName";
-import { Type, VoidType, ProcedureSignatureType, ProcedureSignatureTypeParameter } from "./types";
+import { getClassInstanceType, resolveTypeName } from "./resolveTypeName";
+import { Type, VoidType, ProcedureSignatureType, ProcedureSignatureTypeParameter, ClassInstanceType, PrimitiveType, UnresolvedType } from "./types";
 
-export function getPotentialReturnTypes(block: Expression, blockScope: ProcedureSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type[] {
+export function getPotentialReturnTypes(block: Expression, blockScope: ProcedureSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): (Type|UnresolvedType)[] {
     if (block instanceof ParenthesisExpression) {
-        const types = [];
+        const types: (Type|UnresolvedType)[] = [];
         for (const expression of block.expressions) {
             if (expression instanceof ReturnStatementExpression) {
                 if (expression.expression !== undefined) {
@@ -53,9 +53,10 @@ export function getProcedureSignature(symbol: ProcedureSymbol, existingTypes: Ex
         }
 
         if (param.defaultValue !== undefined) {
+            const paramType = inferExpressionType(param.defaultValue, symbol, existingTypes, errorCollector);
             return new ProcedureSignatureTypeParameter(
                 symbol.symbols.get(param.identifier)! as ParameterSymbol,
-                inferExpressionType(param.defaultValue, symbol, existingTypes, errorCollector)
+                resolveThisType(paramType, existingTypes, errorCollector)
             );
         }
         
@@ -79,7 +80,7 @@ export function getProcedureSignature(symbol: ProcedureSymbol, existingTypes: Ex
     return new ProcedureSignatureType(symbol, argTypes, possibleInferredReturnTypes[0]);
 }
 
-export function resolveSymbolType(symbol: CodeSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type {
+export function resolveSymbolType(symbol: CodeSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type|UnresolvedType {
     const existingType = existingTypes.typeCache.get(symbol);
     if (existingType !== undefined) return existingType;
 
@@ -107,12 +108,25 @@ export function resolveSymbolType(symbol: CodeSymbol, existingTypes: ExistingTyp
             return resolveTypeName(symbol.parent as ScopedSymbol, symbol.expression.type, existingTypes, errorCollector);
         }
 
-        return inferExpressionType(
+        const t = inferExpressionType(
             symbol.expression.initialValue,
             symbol.parent as ScopedSymbol /* not a class if it's a variable */,
             existingTypes,
             errorCollector);
+        console.log(symbol.name, symbol.expression.initialValue, t);
+        return t;
     }
 
     return VoidType.DEFINITION;
+}
+
+export function resolveThisType(type: Type|UnresolvedType, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type {
+    if (type instanceof UnresolvedType) {
+        const unresolvedType = inferExpressionType(type.expression, type.scope, existingTypes, errorCollector);
+        return resolveThisType(unresolvedType, existingTypes, errorCollector);
+    } else if (type instanceof Type) {
+        return type;
+    }
+
+    throw new Error("Invalid type to resolve 'this' for");
 }

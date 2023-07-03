@@ -1,11 +1,13 @@
 import { ErrorCollector } from "../errorCollector";
-import { KeywordExpression, ProcDeclarationExpression, TypeGuardExpression } from "../expression";
+import { KeywordExpression, ProcDeclarationExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbol } from "./symbols";
 import { getProcedureSignature } from "./resolveSymbolType";
-import { ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, VoidType } from "./types";
+import { ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, UnresolvedType, VoidType } from "./types";
 
-export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
+export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): ClassInstanceType {
+    const existingType = existingTypes.typeCache.get(typeSymbol);
+    if (existingType !== undefined) return existingType as ClassInstanceType;
     let offset = 0;
     const fields: Map<string, ClassInstanceTypeField> = new Map;
     const methods: Map<string, ClassInstanceTypeMethod> = new Map;
@@ -14,7 +16,8 @@ export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: Exi
             const fieldType = resolveTypeName(typeSymbol, child.expression.type, existingTypes, errorCollector);
             const field = new ClassInstanceTypeField(offset, child, fieldType);
             fields.set(child.name, field);
-            offset += field.type.size;
+            if (field.type instanceof UnresolvedType) throw new Error("Assertion failed; cannot calculate size of unresolved type");
+            offset += field.type.getSize();
         } else if (child instanceof ProcedureSymbol) {
             const method = new ClassInstanceTypeMethod(child, getProcedureSignature(child, existingTypes, errorCollector));
             methods.set(child.name, method);
@@ -28,7 +31,7 @@ export function resolveTypeName(
     type: ProcDeclarationExpression|KeywordExpression,
     existingTypes: ExistingTypes,
     errorCollector: ErrorCollector
-): Type {
+): Type|UnresolvedType {
     if (type instanceof ProcDeclarationExpression) {
         if (!type.isTypeDeclaration())
             return VoidType.DEFINITION;
@@ -51,6 +54,19 @@ export function resolveTypeName(
     if (type.keyword === "void") return VoidType.DEFINITION;
 
     const typeSymbol = scope.getIdentifierReference(type.keyword);
+
+    if (typeSymbol === undefined) throw new Error(`Invalid type reference '${type}'`);
+
+    const existingType = existingTypes.typeCache.get(typeSymbol);
+    if (existingType !== undefined) return existingType;
+    
+    let parent: ScopedSymbol|ClassSymbol|undefined = scope;
+    while (parent !== undefined) {
+        if (parent === typeSymbol) {
+            return new UnresolvedType(type, scope);
+        }
+        parent = parent.parent;
+    }
 
     if (typeSymbol instanceof TypeAliasSymbol) {
         return resolveTypeName(typeSymbol.parent!, typeSymbol.expression.type, existingTypes, errorCollector);

@@ -1,13 +1,16 @@
+import { ErrorCollector } from "../../errorCollector";
 import { Block, BlockInput } from "../../scratch";
+import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { ClassInstanceType, Type } from "../types";
+import { resolveThisType } from "../resolveSymbolType";
+import { ClassInstanceType, Type, UnresolvedType } from "../types";
 import { Definition } from "./Definition";
 import { ListDefinition } from "./List";
 import { Sprite } from "./Sprite";
 
 export class CompositeDefinition extends Definition {
     constructor(public readonly type: Type, public readonly components: Definition[]) {
-        super(type.size);
+        super(type.getSize());
     }
 
     protected _implDeepTraverseComponents() {
@@ -37,15 +40,17 @@ export class CompositeDefinition extends Definition {
         return definition;
     }
 
-    narrowCompositeToProperty(property: string) {
+    narrowCompositeToProperty(property: string, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
         if (!(this.type instanceof ClassInstanceType)) throw new Error("Assertion failed; inner type is not a struct");
 
         const field = this.type.fields.get(property);
         if (field === undefined) return undefined;
 
+        const fieldType = resolveThisType(field.type, existingTypes, errorCollector);
+
         const components = [];
         const startFieldOffset = field.offset;
-        const endFieldOffset = field.offset + field.type.size;
+        const endFieldOffset = field.offset + fieldType.getSize();
         let i = 0;
         let searchOffset = 0;
         for (; i < this.components.length; i++) {
@@ -53,12 +58,13 @@ export class CompositeDefinition extends Definition {
             if (startFieldOffset >= searchOffset && startFieldOffset < searchOffset + component.size) {
                 if (endFieldOffset <= searchOffset + component.size) {
                     if (component instanceof CompositeDefinition) {
-                        const comp = new CompositeDefinition(field.type, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, field.type.size));
+                        console.log(property, component.components, startFieldOffset - searchOffset, fieldType.getSize());
+                        const comp = new CompositeDefinition(fieldType, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, fieldType.getSize()));
                         return comp;
                     } else if (component instanceof ListDefinition) {
-                        return new CompositeDefinition(field.type, [ component.sliceAtOffset(startFieldOffset - searchOffset, field.type.size) ]);
+                        return new CompositeDefinition(fieldType, [ component.sliceAtOffset(startFieldOffset - searchOffset, fieldType.getSize()) ]);
                     }
-                    return new CompositeDefinition(field.type, [ component ]);
+                    return new CompositeDefinition(fieldType, [ component ]);
                 }
 
                 if (component instanceof ListDefinition) {
@@ -90,7 +96,7 @@ export class CompositeDefinition extends Definition {
             }
             searchOffset += component.size;
         }
-        return new CompositeDefinition(field.type, components);
+        return new CompositeDefinition(fieldType, components);
     }
 
     createRedefinition(uniqueIds: IdGenerator, name: string, sprite: Sprite) {
@@ -166,12 +172,15 @@ export class CompositeDefinition extends Definition {
                     components.push(component);
                 }
 
+                i++;
+                searchOffset += component.size;
                 break;
             }
             searchOffset += component.size;
         }
         for (; i < this.components.length; i++) {
             const component = this.components[i];
+            console.log(component, endOffset, searchOffset, component.size);
             if (endOffset <= searchOffset + component.size) {
                 if (component instanceof ListDefinition) {
                     components.push(component.sliceAtOffset(searchOffset, component.sliceSize - endOffset + searchOffset));

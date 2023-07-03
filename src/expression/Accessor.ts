@@ -9,6 +9,7 @@ import { KeywordExpression } from "./Keyword";
 
 export class AccessorExpression extends Expression {
     static read(accessorToken: AccessorToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
+        console.log("====");
         while (true) {
             const nextToken = tokenReader.getNextToken();
 
@@ -24,6 +25,7 @@ export class AccessorExpression extends Expression {
                 parseSingleTokenAst(nextToken, astCollector, tokenReader, errorCollector);
                 continue;
             }
+            console.log(nextToken, tokenPrecedence);
 
             if (tokenPrecedence > accessorToken.getPrecedence()) {
                 parseSingleTokenAst(nextToken, astCollector, tokenReader, errorCollector);
@@ -34,7 +36,6 @@ export class AccessorExpression extends Expression {
         }
         const right = astCollector.popLastExpression()!;
         const left = astCollector.popLastExpression()!;
-        console.log(right);
         if (!(right instanceof KeywordExpression)) {
             throw new Error("Expected keyword property");
         }
