@@ -2,11 +2,11 @@ import { ErrorCollector } from "../../errorCollector";
 import { VariableDeclarationExpression } from "../../expression";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
-import { CompositeDefinition, ListDefinition, Sprite, VariableDefinition } from "../definitions";
+import { CompositeDefinition, Sprite } from "../definitions";
 import { Definition } from "../definitions/Definition";
 import { resolveSymbolType, resolveThisType } from "../resolveSymbolType";
-import { getClassInstanceType } from "../resolveTypeName";
 import { SymbolDeclarationStore } from "../symbolDeclarationStore";
+import { ArrayType, ClassInstanceType } from "../types";
 import { ProcedureSymbol } from "./Procedure";
 import { CodeSymbol, SymbolFlag, SymbolType } from "./Symbol";
 
@@ -38,7 +38,7 @@ export class VariableSymbol extends CodeSymbol<VariableDeclarationExpression> {
 
         const typeSignature = resolveThisType(resolveSymbolType(this, existingTypes, errorCollector), existingTypes, errorCollector);
 
-        if (typeSignature.getSize() > 1) { // temp?
+        if (!(typeSignature instanceof ArrayType || (typeSignature instanceof ClassInstanceType && typeSignature.doesContainIndexable(existingTypes, errorCollector))) && typeSignature.getSize() > 1) { // temp?
             const variables = [];
             for (let i = 0; i < typeSignature.getSize(); i++) variables.push(sprite.createVariable(uniqueIds.nextId(), this.name + "_" + i));
             const composite = new CompositeDefinition(typeSignature, variables);

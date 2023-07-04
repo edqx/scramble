@@ -1,16 +1,15 @@
 import { FilePositionRange } from "../stringReader";
 import { CloseParenthesisToken } from "../token";
 import { AccessorExpression } from "./Accessor";
-import { ArrayReferenceExpression } from "./ArrayReference";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 
-export class StructFieldsExpression extends Expression {
+export class ArrayReferenceExpression extends Expression {
     constructor(
         closeParenthesisToken: CloseParenthesisToken,
         public readonly reference: KeywordExpression|AccessorExpression|ArrayReferenceExpression,
-        public readonly assignments: Expression[]
+        public readonly capacity: Expression|undefined
     ) {
-        super(ExpressionKind.StructFields, FilePositionRange.contain(reference.position, closeParenthesisToken.position));
+        super(ExpressionKind.ArrayReference, FilePositionRange.contain(reference.position, closeParenthesisToken.position));
     }
 }

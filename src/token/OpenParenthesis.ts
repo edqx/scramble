@@ -27,7 +27,7 @@ export class OpenParenthesisToken extends Token {
     getPrecedence(): number|null {
         switch (this.parenthesis) {
         case "(": return null;
-        case "[": return -1;
+        case "[": return null;
         case "{": return null;
         }
     }

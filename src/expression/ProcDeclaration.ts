@@ -14,6 +14,7 @@ import { ParenthesisExpression } from "./Parenthesis";
 import { ReturnStatementExpression } from "./ReturnStatement";
 import { TypeGuardExpression } from "./TypeGuard";
 import { ReturnTypeIndicatorExpression } from "./ReturnTypeIndicator";
+import { ArrayReferenceExpression } from "./ArrayReference";
 
 export class ProcDeclarationExpression extends Expression {
     static parseParameters(procKeyword: Expression|Token, parameterExpressions: Expression[], errorCollector: ErrorCollector) {
@@ -29,7 +30,7 @@ export class ProcDeclarationExpression extends Expression {
                     continue;
                 }
 
-                parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.reference, parameterExpression.type, parameterExpression.value));
+                parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.reference as KeywordExpression, parameterExpression.type, parameterExpression.value));
             } else if (parameterExpression instanceof TypeGuardExpression) {
                 parameterDeclarations.push(new ParameterDeclarationExpression(parameterExpression.reference, parameterExpression.type, undefined));
             } else if (parameterExpression instanceof KeywordExpression) {
@@ -198,7 +199,7 @@ export class ProcDeclarationExpression extends Expression {
         parametersExpression: ParenthesisExpression,
         public readonly parameters: ParameterDeclarationExpression[],
         public readonly block: Expression|undefined,
-        public readonly returnType: KeywordExpression|ProcDeclarationExpression|undefined
+        public readonly returnType: KeywordExpression|ProcDeclarationExpression|ArrayReferenceExpression|undefined
     ) {
         super(ExpressionKind.ProcDeclaration, FilePositionRange.contain(procKeyword.position, block?.position || parametersExpression.position));
         this.identifier = identifier?.keyword;

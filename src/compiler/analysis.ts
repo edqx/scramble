@@ -1,7 +1,8 @@
 import { ErrorCollector } from "../errorCollector";
-import { AccessorExpression, AssignmentExpression, ClassDeclarationExpression, Expression, FunctionCallExpression, IfStatementExpression, KeywordExpression, MacroDeclarationExpression, NumberExpression, OperatorExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, StructFieldsExpression, TypeAliasDeclarationExpression, TypeGuardExpression, UnaryOperatorExpression, VariableDeclarationExpression, WhileStatementExpression } from "../expression";
+import { AccessorExpression, ArrayReferenceExpression, AssignmentExpression, ClassDeclarationExpression, Expression, FunctionCallExpression, IfStatementExpression, KeywordExpression, MacroDeclarationExpression, NumberExpression, OperatorExpression, ParameterDeclarationExpression, ParenthesisExpression, ProcDeclarationExpression, ReturnStatementExpression, StringExpression, StructFieldsExpression, TypeAliasDeclarationExpression, TypeGuardExpression, UnaryOperatorExpression, VariableDeclarationExpression, WhileStatementExpression } from "../expression";
 import { ClassSymbol, CodeSymbol, MacroSymbol, ParameterSymbol, ProcedureSymbol, SymbolFlag, TypeAliasSymbol, VariableSymbol } from "./symbols";
 import { SymbolDeclarationStore } from "./symbolDeclarationStore";
+import { PrimitiveType } from "./types";
 
 export function staticallyAnalyseExpressionDeclaration(
     parentScope: ProcedureSymbol|MacroSymbol,
@@ -107,6 +108,8 @@ export function staticallyAnalyseExpression(
             return;
         }
 
+        if (PrimitiveType.DEFINITIONS[expression.keyword]) return;
+
         const reference = parentScope.getIdentifierReference(expression.keyword);
         if (reference === undefined) throw new Error(`Could not find reference '${expression.keyword}'`);
 
@@ -155,12 +158,19 @@ export function staticallyAnalyseExpression(
     } else if (expression instanceof StringExpression) {
         // no-op
     } else if (expression instanceof StructFieldsExpression) {
+        staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbolTransformer, analysisFlags, symbols, errorCollector);
         for (const assignment of expression.assignments) {
-            staticallyAnalyseExpression(parentScope, scopeTraversal, assignment.value, symbolTransformer, analysisFlags, symbols, errorCollector);
+            if (assignment instanceof AssignmentExpression && !(expression.reference instanceof ArrayReferenceExpression)) {
+                staticallyAnalyseExpression(parentScope, scopeTraversal, assignment.value, symbolTransformer, analysisFlags, symbols, errorCollector);
+            } else {
+                staticallyAnalyseExpression(parentScope, scopeTraversal, assignment, symbolTransformer, analysisFlags, symbols, errorCollector);
+            }
         }
         // todo: check fields
     } else if (expression instanceof TypeGuardExpression) {
         // todo: check reference & type
+    } else if (expression instanceof ArrayReferenceExpression) {
+        staticallyAnalyseExpression(parentScope, scopeTraversal, expression.reference, symbolTransformer, analysisFlags, symbols, errorCollector);
     } else if (expression instanceof UnaryOperatorExpression) {
         staticallyAnalyseExpression(parentScope, scopeTraversal, expression.expression, symbolTransformer, analysisFlags, symbols, errorCollector);
     } else if (expression instanceof WhileStatementExpression) {

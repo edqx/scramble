@@ -1,9 +1,9 @@
 import { ErrorCollector } from "../errorCollector";
-import { KeywordExpression, ProcDeclarationExpression } from "../expression";
+import { ArrayReferenceExpression, KeywordExpression, NumberExpression, ProcDeclarationExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, FieldSymbol, ProcedureSymbol, ScopedSymbol, TypeAliasSymbol } from "./symbols";
 import { getProcedureSignature } from "./resolveSymbolType";
-import { ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, UnresolvedType, VoidType } from "./types";
+import { ArrayType, ClassInstanceType, ClassInstanceTypeField, ClassInstanceTypeMethod, PrimitiveType, ProcedureSignatureType, ProcedureSignatureTypeParameter, Type, UnresolvedType, VoidType } from "./types";
 
 export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): ClassInstanceType {
     const existingType = existingTypes.typeCache.get(typeSymbol);
@@ -28,15 +28,25 @@ export function getClassInstanceType(typeSymbol: ClassSymbol, existingTypes: Exi
 
 export function resolveTypeName(
     scope: ScopedSymbol|ClassSymbol,
-    type: ProcDeclarationExpression|KeywordExpression,
+    typeReferenceExpression: ArrayReferenceExpression|ProcDeclarationExpression|KeywordExpression,
     existingTypes: ExistingTypes,
     errorCollector: ErrorCollector
 ): Type|UnresolvedType {
-    if (type instanceof ProcDeclarationExpression) {
-        if (!type.isTypeDeclaration())
+    if (typeReferenceExpression instanceof ArrayReferenceExpression) {
+        const resolved = resolveTypeName(scope, typeReferenceExpression.reference as KeywordExpression|ArrayReferenceExpression, existingTypes, errorCollector);
+        if (resolved instanceof UnresolvedType) throw new Error("Cannot calculate size of self-reference");
+
+        if (!(typeReferenceExpression.capacity instanceof NumberExpression) || isNaN(parseInt(typeReferenceExpression.capacity.unprocessedNumber)))
+            throw new Error("Capacity must be a constant integer");
+
+        return new ArrayType(resolved, typeReferenceExpression.capacity === undefined ? undefined : parseInt(typeReferenceExpression.capacity.unprocessedNumber));
+    }
+
+    if (typeReferenceExpression instanceof ProcDeclarationExpression) {
+        if (!typeReferenceExpression.isTypeDeclaration())
             return VoidType.DEFINITION;
 
-        const argTypes = type.parameters.map(param => {
+        const argTypes = typeReferenceExpression.parameters.map(param => {
             if (param.type !== undefined) {
                 return new ProcedureSignatureTypeParameter(undefined, resolveTypeName(scope, param.type, existingTypes, errorCollector));
             }
@@ -44,18 +54,18 @@ export function resolveTypeName(
             throw new Error("Param requires a type");
         });
 
-        return new ProcedureSignatureType(undefined, argTypes, resolveTypeName(scope, type.returnType, existingTypes, errorCollector));
+        return new ProcedureSignatureType(undefined, argTypes, resolveTypeName(scope, typeReferenceExpression.returnType, existingTypes, errorCollector));
     }
 
-    const primitiveType = PrimitiveType.DEFINITIONS[type.keyword];
+    const primitiveType = PrimitiveType.DEFINITIONS[typeReferenceExpression.keyword];
     if (primitiveType !== undefined)
         return primitiveType;
 
-    if (type.keyword === "void") return VoidType.DEFINITION;
+    if (typeReferenceExpression.keyword === "void") return VoidType.DEFINITION;
 
-    const typeSymbol = scope.getIdentifierReference(type.keyword);
+    const typeSymbol = scope.getIdentifierReference(typeReferenceExpression.keyword);
 
-    if (typeSymbol === undefined) throw new Error(`Invalid type reference '${type}'`);
+    if (typeSymbol === undefined) throw new Error(`Invalid type reference '${typeReferenceExpression}'`);
 
     const existingType = existingTypes.typeCache.get(typeSymbol);
     if (existingType !== undefined) return existingType;
@@ -63,7 +73,7 @@ export function resolveTypeName(
     let parent: ScopedSymbol|ClassSymbol|undefined = scope;
     while (parent !== undefined) {
         if (parent === typeSymbol) {
-            return new UnresolvedType(type, scope);
+            return new UnresolvedType(typeReferenceExpression, scope);
         }
         parent = parent.parent;
     }
@@ -74,5 +84,5 @@ export function resolveTypeName(
         return getClassInstanceType(typeSymbol, existingTypes, errorCollector);
     }
 
-    throw new Error(`Invalid type reference '${type}'`);
+    throw new Error(`Invalid type reference '${typeReferenceExpression}'`);
 }

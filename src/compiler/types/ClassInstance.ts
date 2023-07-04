@@ -1,4 +1,8 @@
+import { ErrorCollector } from "../../errorCollector";
+import { ExistingTypes } from "../ExistingTypes";
+import { resolveThisType } from "../resolveSymbolType";
 import { ClassSymbol, FieldSymbol, ProcedureSymbol } from "../symbols";
+import { ArrayType } from "./Array";
 import { ProcedureSignatureType } from "./ProcedureSignature";
 import { UnresolvedType } from "./This";
 import { Type } from "./Type";
@@ -30,6 +34,19 @@ export class ClassInstanceType extends Type {
         const lastField = allFields[allFields.length - 1];
         if (lastField.type instanceof UnresolvedType) throw new Error("Assertion error; cannot calculate size of fields with recursive types");
         this.size = lastField === undefined ? 1 : Math.max(1, lastField.offset + lastField.type.getSize());
+    }
+    
+    doesContainIndexable(existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
+        for (const [ , field ] of this.fields) {
+            const resolvedType = resolveThisType(field.type, existingTypes, errorCollector);
+            if (resolvedType instanceof ClassInstanceType) {
+                if (resolvedType.doesContainIndexable(existingTypes, errorCollector)) return true;
+            } else if (resolvedType instanceof ArrayType) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     isEquivalentTo(other: Type): boolean {

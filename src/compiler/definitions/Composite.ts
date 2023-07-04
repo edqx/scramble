@@ -3,7 +3,7 @@ import { Block, BlockInput } from "../../scratch";
 import { ExistingTypes } from "../ExistingTypes";
 import { IdGenerator } from "../IdGenerator";
 import { resolveThisType } from "../resolveSymbolType";
-import { ClassInstanceType, Type, UnresolvedType } from "../types";
+import { ClassInstanceType, Type } from "../types";
 import { Definition } from "./Definition";
 import { ListDefinition } from "./List";
 import { Sprite } from "./Sprite";
@@ -11,10 +11,6 @@ import { Sprite } from "./Sprite";
 export class CompositeDefinition extends Definition {
     constructor(public readonly type: Type, public readonly components: Definition[]) {
         super(type.getSize());
-    }
-
-    protected _implDeepTraverseComponents() {
-
     }
     
     deepTraverseComponents(): Definition[] {
@@ -40,7 +36,7 @@ export class CompositeDefinition extends Definition {
         return definition;
     }
 
-    narrowCompositeToProperty(property: string, existingTypes: ExistingTypes, errorCollector: ErrorCollector) {
+    narrowCompositeToProperty(property: string, existingTypes: ExistingTypes, errorCollector: ErrorCollector, uniqueIds: IdGenerator) {
         if (!(this.type instanceof ClassInstanceType)) throw new Error("Assertion failed; inner type is not a struct");
 
         const field = this.type.fields.get(property);
@@ -58,19 +54,19 @@ export class CompositeDefinition extends Definition {
             if (startFieldOffset >= searchOffset && startFieldOffset < searchOffset + component.size) {
                 if (endFieldOffset <= searchOffset + component.size) {
                     if (component instanceof CompositeDefinition) {
-                        console.log(property, component.components, startFieldOffset - searchOffset, fieldType.getSize());
-                        const comp = new CompositeDefinition(fieldType, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, fieldType.getSize()));
+                        const comp = new CompositeDefinition(fieldType, component.sliceAtOffsetAndSize(startFieldOffset - searchOffset, fieldType.getSize(), uniqueIds));
                         return comp;
                     } else if (component instanceof ListDefinition) {
-                        return new CompositeDefinition(fieldType, [ component.sliceAtOffset(startFieldOffset - searchOffset, fieldType.getSize()) ]);
+                        return new CompositeDefinition(fieldType, [ component.sliceAtOffset(startFieldOffset - searchOffset, fieldType.getSize(), uniqueIds) ]);
                     }
                     return new CompositeDefinition(fieldType, [ component ]);
                 }
 
                 if (component instanceof ListDefinition) {
-                    components.push(component.sliceAtOffset(searchOffset, component.sliceStart - startFieldOffset + searchOffset));
+                    if (typeof component.sliceStart !== "number") throw new Error("Assertion failed; what?");
+                    components.push(component.sliceAtOffset(searchOffset, component.sliceStart - startFieldOffset + searchOffset, uniqueIds));
                 } else if (component instanceof CompositeDefinition) {
-                    components.push(...component.sliceAtOffsetAndSize(searchOffset, component.size - searchOffset + startFieldOffset));
+                    components.push(...component.sliceAtOffsetAndSize(searchOffset, component.size - searchOffset + startFieldOffset, uniqueIds));
                 } else {
                     components.push(component);
                 }
@@ -83,9 +79,9 @@ export class CompositeDefinition extends Definition {
             const component = this.components[i];
             if (endFieldOffset <= searchOffset + component.size) {
                 if (component instanceof ListDefinition) {
-                    components.push(component.sliceAtOffset(0, component.size - searchOffset + endFieldOffset));
+                    components.push(component.sliceAtOffset(0, component.size - searchOffset + endFieldOffset, uniqueIds));
                 } else if (component instanceof CompositeDefinition) {
-                    components.push(...component.sliceAtOffsetAndSize(0, component.size - searchOffset + endFieldOffset));
+                    components.push(...component.sliceAtOffsetAndSize(0, component.size - searchOffset + endFieldOffset, uniqueIds));
                 } else {
                     components.push(component);
                 }
@@ -148,7 +144,7 @@ export class CompositeDefinition extends Definition {
         throw new Error("Assertion failed; Offset beyond size of composite");
     }
     
-    sliceAtOffsetAndSize(offset: number, size: number): Definition[] {
+    sliceAtOffsetAndSize(offset: number, size: number, uniqueIds: IdGenerator): Definition[] {
         const components = [];
         const endOffset = offset + size;
         let i = 0;
@@ -158,14 +154,15 @@ export class CompositeDefinition extends Definition {
             if (offset >= searchOffset && offset < searchOffset + component.size) {
                 if (endOffset <= searchOffset + component.size) {
                     if (component instanceof CompositeDefinition)
-                        return component.sliceAtOffsetAndSize(offset - searchOffset, size);
+                        return component.sliceAtOffsetAndSize(offset - searchOffset, size, uniqueIds);
                     if (component instanceof ListDefinition)
-                        return [ component.sliceAtOffset(offset - searchOffset, size) ];
+                        return [ component.sliceAtOffset(offset - searchOffset, size, uniqueIds) ];
                     return [ component ];
                 }
 
                 if (component instanceof ListDefinition) {
-                    components.push(component.sliceAtOffset(offset - searchOffset, component.sliceStart - offset + searchOffset));
+                    if (typeof component.sliceStart !== "number") throw new Error("Assertion failed; what?");
+                    components.push(component.sliceAtOffset(offset - searchOffset, component.sliceStart - offset + searchOffset, uniqueIds));
                 } else if (component instanceof CompositeDefinition) {
                     components.push(new CompositeDefinition(component.type, component.components));
                 } else {
@@ -180,10 +177,9 @@ export class CompositeDefinition extends Definition {
         }
         for (; i < this.components.length; i++) {
             const component = this.components[i];
-            console.log(component, endOffset, searchOffset, component.size);
             if (endOffset <= searchOffset + component.size) {
                 if (component instanceof ListDefinition) {
-                    components.push(component.sliceAtOffset(searchOffset, component.sliceSize - endOffset + searchOffset));
+                    components.push(component.sliceAtOffset(searchOffset, component.sliceSize - endOffset + searchOffset, uniqueIds));
                 } else {
                     components.push(component);
                 }

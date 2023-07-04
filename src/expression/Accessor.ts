@@ -9,7 +9,6 @@ import { KeywordExpression } from "./Keyword";
 
 export class AccessorExpression extends Expression {
     static read(accessorToken: AccessorToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
-        console.log("====");
         while (true) {
             const nextToken = tokenReader.getNextToken();
 
@@ -25,7 +24,6 @@ export class AccessorExpression extends Expression {
                 parseSingleTokenAst(nextToken, astCollector, tokenReader, errorCollector);
                 continue;
             }
-            console.log(nextToken, tokenPrecedence);
 
             if (tokenPrecedence > accessorToken.getPrecedence()) {
                 parseSingleTokenAst(nextToken, astCollector, tokenReader, errorCollector);

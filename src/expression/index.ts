@@ -1,4 +1,5 @@
 export * from "./Accessor";
+export * from "./ArrayReference";
 export * from "./Assignment";
 export * from "./ClassDeclaration";
 export * from "./Expression";

@@ -1,3 +1,4 @@
+export * from "./Array";
 export * from "./ClassInstance";
 export * from "./Primitive";
 export * from "./ProcedureSignature";

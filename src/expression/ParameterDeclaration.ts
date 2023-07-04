@@ -1,4 +1,5 @@
 import { FilePositionRange } from "../stringReader";
+import { ArrayReferenceExpression } from "./ArrayReference";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
@@ -8,7 +9,7 @@ export class ParameterDeclarationExpression extends Expression {
 
     constructor(
         identifier: KeywordExpression,
-        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
+        public readonly type: KeywordExpression|ProcDeclarationExpression|ArrayReferenceExpression|undefined,
         public readonly defaultValue: Expression|undefined
     ) {
         super(

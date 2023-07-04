@@ -20,7 +20,8 @@ export enum ExpressionKind {
     VariableDeclaration,
     StructFields,
     ClassDeclaration,
-    ReturnTypeIndicator
+    ReturnTypeIndicator,
+    ArrayReference
 }
 
 export abstract class Expression {

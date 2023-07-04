@@ -7,6 +7,7 @@ import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
+import { ArrayReferenceExpression } from "./ArrayReference";
 
 export class ReturnTypeIndicatorExpression extends Expression {
     static read(typeIndicatorToken: TypeIndicatorToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -29,7 +30,7 @@ export class ReturnTypeIndicatorExpression extends Expression {
             }
         }
         const right = astCollector.popLastExpression()!;
-        if (!(right instanceof KeywordExpression) && !(right instanceof ProcDeclarationExpression)) {
+        if (!(right instanceof KeywordExpression) && !(right instanceof ProcDeclarationExpression) && !(right instanceof ArrayReferenceExpression)) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.ExpectedIdentifier)
                     .addError(right.position, "Invalid type")
@@ -40,7 +41,7 @@ export class ReturnTypeIndicatorExpression extends Expression {
         astCollector.appendExpression(new ReturnTypeIndicatorExpression(right));
     }
 
-    constructor(public readonly type: KeywordExpression|ProcDeclarationExpression) {
+    constructor(public readonly type: KeywordExpression|ProcDeclarationExpression|ArrayReferenceExpression) {
         super(ExpressionKind.ReturnTypeIndicator, type.position);
     }
 }

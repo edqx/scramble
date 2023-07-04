@@ -8,6 +8,7 @@ import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
+import { ArrayReferenceExpression } from "./ArrayReference";
 
 export class TypeGuardExpression extends Expression {
     static read(typeIndicatorToken: TypeIndicatorToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -39,7 +40,7 @@ export class TypeGuardExpression extends Expression {
             );
             return;
         }
-        if (!(right instanceof KeywordExpression) && !(right instanceof ProcDeclarationExpression)) {
+        if (!(right instanceof KeywordExpression) && !(right instanceof ProcDeclarationExpression) && !(right instanceof ArrayReferenceExpression)) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.ExpectedIdentifier)
                     .addError(left.position, "Invalid type")
@@ -50,7 +51,7 @@ export class TypeGuardExpression extends Expression {
         astCollector.appendExpression(new TypeGuardExpression(left, right));
     }
 
-    constructor(public readonly reference: KeywordExpression, public readonly type: KeywordExpression|ProcDeclarationExpression) {
+    constructor(public readonly reference: KeywordExpression, public readonly type: KeywordExpression|ProcDeclarationExpression|ArrayReferenceExpression) {
         super(ExpressionKind.TypeGuard, FilePositionRange.contain(reference.position, type.position));
     }
 }

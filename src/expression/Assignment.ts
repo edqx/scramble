@@ -10,6 +10,7 @@ import { KeywordExpression } from "./Keyword";
 import { MacroDeclarationExpression } from "./MacroDeclaration";
 import { TypeGuardExpression } from "./TypeGuard";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
+import { ArrayReferenceExpression } from "./ArrayReference";
 
 export class AssignmentExpression extends Expression {
     static fromOperator(left: Expression, right: Expression, operatorToken: OperatorToken, astCollector: AstCollector, errorCollector: ErrorCollector) {
@@ -17,7 +18,7 @@ export class AssignmentExpression extends Expression {
             MacroDeclarationExpression.fromOperator(left, right, operatorToken, astCollector, errorCollector);
             return;
         }
-        if (!(left instanceof KeywordExpression || left instanceof AccessorExpression || left instanceof TypeGuardExpression)) {
+        if (!(left instanceof KeywordExpression || left instanceof AccessorExpression || left instanceof TypeGuardExpression || left instanceof ArrayReferenceExpression)) {
             errorCollector.addError(
                 new CompilerError(ErrorCode.InvalidLeftHandSideReference)
                     .addError(left.position, "Invalid left-hand side assignment")
@@ -34,8 +35,8 @@ export class AssignmentExpression extends Expression {
     }
 
     constructor(
-        public readonly reference: KeywordExpression|AccessorExpression,
-        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
+        public readonly reference: KeywordExpression|AccessorExpression|ArrayReferenceExpression,
+        public readonly type: ProcDeclarationExpression|KeywordExpression|ArrayReferenceExpression|undefined,
         public readonly value: Expression
     ) {
         super(ExpressionKind.Assignment, FilePositionRange.contain(reference.position, value.position));

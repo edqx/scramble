@@ -1,11 +1,11 @@
 import { CompilerError, ErrorCode } from "../error";
 import { ErrorCollector } from "../errorCollector";
-import { AccessorExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, StringExpression, StructFieldsExpression } from "../expression";
+import { AccessorExpression, ArrayReferenceExpression, AssignmentExpression, Expression, ExpressionKind, FunctionCallExpression, KeywordExpression, NumberExpression, OperatorExpression, ParenthesisExpression, StringExpression, StructFieldsExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
 import { ClassSymbol, MacroSymbol, ScopedSymbol } from "./symbols";
 import { resolveSymbolType } from "./resolveSymbolType";
 import { resolveTypeName } from "./resolveTypeName";
-import { ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, UnresolvedType, VoidType } from "./types";
+import { ArrayType, ClassInstanceType, PrimitiveType, ProcedureSignatureType, Type, UnresolvedType, VoidType } from "./types";
 
 export function inferExpressionType(expression: Expression, expressionScope: ScopedSymbol|ClassSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): Type|UnresolvedType {
     if (expression instanceof NumberExpression) {
@@ -13,14 +13,15 @@ export function inferExpressionType(expression: Expression, expressionScope: Sco
     } else if (expression instanceof StringExpression) {
         return PrimitiveType.DEFINITIONS.string;
     } else if (expression instanceof StructFieldsExpression) {
-        if (!(expression.reference instanceof KeywordExpression))
+        if (expression.reference instanceof KeywordExpression || expression.reference instanceof ArrayReferenceExpression) {
+            const constructorType = resolveTypeName(expressionScope, expression.reference, existingTypes, errorCollector);
+            if (constructorType instanceof UnresolvedType) return new UnresolvedType(expression, expressionScope);
+            if (!(constructorType instanceof ClassInstanceType) && !(constructorType instanceof ArrayType)) throw new Error("Can only instantiate classes or arrays");
+        
+            return constructorType;
+        } else {
             throw new Error("Instantiating sub-class not supported");
-
-        const constructorType = resolveTypeName(expressionScope, expression.reference, existingTypes, errorCollector);
-        if (constructorType instanceof UnresolvedType) return new UnresolvedType(expression, expressionScope);
-        if (!(constructorType instanceof ClassInstanceType)) throw new Error("Can only instantiate classes");
-    
-        return constructorType;
+        }
     } else if (expression instanceof ParenthesisExpression) {
         const lastExpression = expression.expressions[expression.expressions.length - 1];
         if (lastExpression === undefined) return VoidType.DEFINITION;
@@ -107,13 +108,52 @@ in argument ${i + 1} for function signature '${procSignature.getName()}'`)
 
         let parent: ScopedSymbol|ClassSymbol|undefined = expressionScope;
         while (parent !== undefined) {
-            if (parent === referenceSymbol) {
-                return new UnresolvedType(expression, expressionScope);
-            }
+            if (parent === referenceSymbol) return new UnresolvedType(expression, expressionScope);
             parent = parent.parent;
         }
 
         return resolveSymbolType(referenceSymbol, existingTypes, errorCollector);
+    } else if (expression instanceof ArrayReferenceExpression) {
+        if (!(expression.reference instanceof KeywordExpression)) {
+            const baseType = inferExpressionType(expression.reference, expressionScope, existingTypes, errorCollector);
+            if (baseType instanceof UnresolvedType) return new UnresolvedType(expression, expressionScope);
+            if (!(baseType instanceof ArrayType)) throw new Error("Can index reference of type array");
+
+            return baseType.elementType;
+        }
+
+        const referenceSymbol = expressionScope.getIdentifierReference(expression.reference.keyword);
+        if (referenceSymbol !== undefined) {
+            const existingType = existingTypes.typeCache.get(referenceSymbol);
+            if (existingType !== undefined) return existingType;
+    
+            let parent: ScopedSymbol|ClassSymbol|undefined = expressionScope;
+            while (parent !== undefined) {
+                if (parent === referenceSymbol) {
+                    return new UnresolvedType(expression, expressionScope);
+                }
+                parent = parent.parent;
+            }
+    
+            const arrType = resolveSymbolType(referenceSymbol, existingTypes, errorCollector);
+            if (!(arrType instanceof ArrayType)) throw new Error("Can index reference of type array");
+
+            return arrType.elementType;
+        }
+
+        if (!(expression.capacity instanceof NumberExpression) || isNaN(parseInt(expression.capacity.unprocessedNumber)))
+            throw new Error("Capacity must be a constant integer");
+
+        const constructorType = resolveTypeName(expressionScope, expression.reference, existingTypes, errorCollector);
+        if (constructorType instanceof UnresolvedType) return new UnresolvedType(expression, expressionScope);
+        if (!(constructorType instanceof ClassInstanceType)) throw new Error("Can only instantiate classes");
+    
+        return new ArrayType(constructorType, expression.capacity === undefined ? undefined : parseInt(expression.capacity.unprocessedNumber));
+    } else if (expression instanceof ParenthesisExpression) {
+        const lastExpression = expression.expressions[expression.expressions.length - 1];
+        if (lastExpression === undefined) return VoidType.DEFINITION;
+
+        return inferExpressionType(lastExpression, expressionScope, existingTypes, errorCollector);
     } else if (expression instanceof OperatorExpression) {
         const left = inferExpressionType(expression.left, expressionScope, existingTypes, errorCollector);
         const right = inferExpressionType(expression.right, expressionScope, existingTypes, errorCollector);

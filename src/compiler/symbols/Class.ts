@@ -43,7 +43,8 @@ export class ClassSymbol extends CodeSymbol<ClassDeclarationExpression> {
         if (this._cachedMutatedThisDefinition !== undefined) return this._cachedMutatedThisDefinition;
         
         const typeSignature = getClassInstanceType(this, existingTypes, errorCollector);
-        if (typeSignature.getSize() > 1) { // temp?
+
+        if (!typeSignature.doesContainIndexable(existingTypes, errorCollector) && typeSignature.getSize() > 1) { // temp?
             const variables = [];
             for (let i = 0; i < typeSignature.getSize(); i++) variables.push(sprite.createVariable(uniqueIds.nextId(), "mut:" + this.name + "_" + i));
             const composite = new CompositeDefinition(typeSignature, variables);

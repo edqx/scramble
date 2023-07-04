@@ -72,7 +72,7 @@ export class TypeAliasDeclarationExpression extends Expression {
             new TypeAliasDeclarationExpression(
                 declarationToken,
                 expression,
-                expression.reference.keyword,
+                (expression.reference as KeywordExpression).keyword,
                 expression.value
             )
         );

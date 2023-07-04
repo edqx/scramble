@@ -19,5 +19,6 @@ export enum ErrorCode {
     ExpectedFieldOrMethod,
     BadTypeAssignment,
     BadFunctioncall,
-    ExpectedReturnType
+    ExpectedReturnType,
+    InvalidArrayCapacity
 }

@@ -10,6 +10,7 @@ import { AssignmentExpression } from "./Assignment";
 import { Expression, ExpressionKind } from "./Expression";
 import { KeywordExpression } from "./Keyword";
 import { ProcDeclarationExpression } from "./ProcDeclaration";
+import { ArrayReferenceExpression } from "./ArrayReference";
 
 export class VariableDeclarationExpression extends Expression {
     static read(declarationToken: KeywordToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -58,7 +59,7 @@ export class VariableDeclarationExpression extends Expression {
             new VariableDeclarationExpression(
                 declarationToken,
                 expression,
-                expression.reference.keyword,
+                (expression.reference as KeywordExpression).keyword,
                 expression.type,
                 expression.value
             )
@@ -71,7 +72,7 @@ export class VariableDeclarationExpression extends Expression {
         declarationKeyword: KeywordToken,
         assignmentExpression: AssignmentExpression,
         public readonly identifier: string,
-        public readonly type: ProcDeclarationExpression|KeywordExpression|undefined,
+        public readonly type: KeywordExpression|ProcDeclarationExpression|ArrayReferenceExpression|undefined,
         public readonly initialValue: Expression
     ) {
         super(ExpressionKind.VariableDeclaration, FilePositionRange.contain(declarationKeyword.position, assignmentExpression.position));

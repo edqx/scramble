@@ -8,9 +8,10 @@ import { TokenReader } from "../tokenReader";
 import { Expression, ExpressionKind } from "./Expression";
 import { FunctionCallExpression } from "./FunctionCall";
 import { KeywordExpression } from "./Keyword";
-import { AssignmentExpression } from "./Assignment";
 import { StructFieldsExpression } from "./StructFields";
 import { AccessorExpression } from "./Accessor";
+import { ArrayReferenceExpression } from "./ArrayReference";
+import { NumberExpression } from "./Number";
 
 export class ParenthesisExpression extends Expression {
     static readExpectBlock(openParenthesisToken: OpenParenthesisToken, astCollector: AstCollector, tokenReader: TokenReader, errorCollector: ErrorCollector) {
@@ -84,23 +85,23 @@ export class ParenthesisExpression extends Expression {
             const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
             astCollector.appendExpression(new FunctionCallExpression(identifierExpression, parenthesisExpression));
             return;
-        } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression) && openParenthesisToken.parenthesis === "{") {
-            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression;
-            for (const expression of parenthesisExpression.expressions) {
-                if (!(expression instanceof AssignmentExpression)) {
-                    errorCollector.addError(
-                        new CompilerError(ErrorCode.ExpectedFieldAssignment)
-                            .addError(expression.position, "Expected a field assignment")
-                            .addInfo(identifierExpression.position, "You can only assign fields in a struct initialiser")
-                    )
-                    return;
-                }
-            }
+        } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression || last instanceof ArrayReferenceExpression) && openParenthesisToken.parenthesis === "{") {
+            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression|AccessorExpression|ArrayReferenceExpression;
             const closeParenthesisToken = tokenReader.peekLastToken()! as CloseParenthesisToken;
             astCollector.appendExpression(new StructFieldsExpression(
                 closeParenthesisToken,
                 identifierExpression,
-                parenthesisExpression.expressions as AssignmentExpression[]
+                parenthesisExpression.expressions
+            ));
+            return;
+        } else if ((last instanceof KeywordExpression || last instanceof AccessorExpression || last instanceof ArrayReferenceExpression) && openParenthesisToken.parenthesis === "[") {
+            const identifierExpression = astCollector.popLastExpression()! as KeywordExpression|ArrayReferenceExpression;
+            const arrayCapacity = parenthesisExpression.expressions[0];
+            const closeParenthesisToken = tokenReader.peekLastToken()! as CloseParenthesisToken;
+            astCollector.appendExpression(new ArrayReferenceExpression(
+                closeParenthesisToken,
+                identifierExpression,
+                arrayCapacity
             ));
             return;
         }

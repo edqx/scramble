@@ -1,10 +1,10 @@
 import { ErrorCollector } from "../errorCollector";
 import { Expression, ParenthesisExpression, ReturnStatementExpression, IfStatementExpression, WhileStatementExpression, ScriptExpression, KeywordExpression, AccessorExpression } from "../expression";
 import { ExistingTypes } from "./ExistingTypes";
-import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol, ClassSymbol } from "./symbols";
+import { ProcedureSymbol, ParameterSymbol, CodeSymbol, FieldSymbol, ScopedSymbol, VariableSymbol } from "./symbols";
 import { inferExpressionType } from "./inferExpressionType";
-import { getClassInstanceType, resolveTypeName } from "./resolveTypeName";
-import { Type, VoidType, ProcedureSignatureType, ProcedureSignatureTypeParameter, ClassInstanceType, PrimitiveType, UnresolvedType } from "./types";
+import { resolveTypeName } from "./resolveTypeName";
+import { Type, VoidType, ProcedureSignatureType, ProcedureSignatureTypeParameter, UnresolvedType } from "./types";
 
 export function getPotentialReturnTypes(block: Expression, blockScope: ProcedureSymbol, existingTypes: ExistingTypes, errorCollector: ErrorCollector): (Type|UnresolvedType)[] {
     if (block instanceof ParenthesisExpression) {
@@ -113,7 +113,6 @@ export function resolveSymbolType(symbol: CodeSymbol, existingTypes: ExistingTyp
             symbol.parent as ScopedSymbol /* not a class if it's a variable */,
             existingTypes,
             errorCollector);
-        console.log(symbol.name, symbol.expression.initialValue, t);
         return t;
     }
 
